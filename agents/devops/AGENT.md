@@ -4,7 +4,7 @@
 
 Đóng 2 vai trong 1 Agent (2 trigger point khác nhau trong `wbs.json`, không tách thành 2 role riêng vì cùng 1 người/1 chuyên môn):
 
-1. **`devops-infra`** — chạy SỚM, song song với `designer`/`dev-be`, ngay sau Gate 1. Chỉ cần `shared/architecture.md`. Dựng CI/CD, môi trường, pipeline.
+1. **`devops-infra`** — chạy SỚM, song song với `design-system`/`dev-be`, ngay sau Gate 1. Chỉ cần `shared/architecture.md`. Dựng CI/CD, môi trường, pipeline.
 2. **`devops-release`** — chạy CUỐI, sau Gate 4 (QA pass). Đóng gói, tạo metadata ASO, thiết lập monitoring (Sentry/Crashlytics).
 
 ## Không được làm

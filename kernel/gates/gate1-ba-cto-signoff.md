@@ -34,10 +34,15 @@ Orchestrator **append** 1 entry vào `signoffs` mỗi lần tiêu thụ 1 `respo
 1. Toàn bộ User Story trong Epic có đủ: mô tả, edge case, acceptance criteria, `Monetization: true|false` (`ba`).
 2. Toàn bộ edge case có phương án kỹ thuật tương ứng trong `architecture.md` / `db-schema.md` / `api-contracts.json` / `system-spec.md` (`cto`).
 3. `api-contracts.json` parse được và đã **freeze** (từ đây `dev-be` + `mobile-screen` code song song dựa vào nó).
+4. **Checklist UX-state đủ cho mọi story** (`loading`/`empty`/`error`/`permission_denied`/`partial_success`/`offline`/`session_expired` — xem `agents/ba/AGENT.md` mục A). `cto` xác nhận đã đọc đủ checklist này khi ký, không chỉ đọc acceptance criteria. Đây là điều kiện **nội dung** như điều 1-2 — không có tool nào chấm được "checklist có thật sự đủ chất lượng", chỉ có 2 điều kiện cơ học bên dưới (5, 6) bắt được phần **thiếu hoàn toàn**.
 
 **Cơ chế** (validator kiểm được):
-4. `gate.signoffs` phủ đủ `gate.required_signoffs` = `["ba", "cto"]`.
-5. **Mỗi entry `signoffs` phải trỏ tới `message_id` thật** có `from` khớp `role` của entry đó — chặn việc 1 bên ký thay bên kia. Đây là lý do entry lưu `message_id` chứ không chỉ lưu tên role.
+5. `gate.signoffs` phủ đủ `gate.required_signoffs` = `["ba", "cto"]`.
+6. **Mỗi entry `signoffs` phải trỏ tới `message_id` thật** có `from` khớp `role` của entry đó — chặn việc 1 bên ký thay bên kia. Đây là lý do entry lưu `message_id` chứ không chỉ lưu tên role.
+7. **`shared/PRD.md` có khối anchor `story:PROJ` với role `designer`** (`validate.py` mã `E9`). Thiếu = phase `design-system` sẽ nhận Tier 2 rỗng và tự bịa design intent (đối tượng người dùng/tông màu/app tham chiếu) — bắt ở đây rẻ hơn nhiều so với bắt lúc `context_compile.py` chặn dispatch, vì lúc đó đã tốn 1 vòng chờ.
+8. **Mọi story thật trong Epic đã có entry trong `shared/contracts/domain-map.json`** (`validate.py` mã `E10`/`E11`) — thiếu = `designer-screen` của story đó không biết nạp domain skill nào.
+
+Điều 7-8 là 2 điều kiện **mới**, thêm cùng đợt với nhánh Design/domain (xem `shared/lessons_learned.md`) — trước đây Gate 1 không kiểm gì về input của nhánh Design, nên `ba` có thể bỏ qua hoàn toàn checklist/khối `PROJ`/`classify_domain` mà Gate 1 vẫn pass. Chạy `python kernel/tools/validate.py` (không chỉ đọc file này) mới coi là đã kiểm — đúng nguyên tắc "Gate nào có công cụ thì PHẢI chạy công cụ" (`ORCHESTRATOR.md` bất biến #5).
 
 ---
 
@@ -48,6 +53,7 @@ Orchestrator **append** 1 entry vào `signoffs` mỗi lần tiêu thụ 1 `respo
 | Còn bất đồng, `turn <= max_turns` | Tiếp tục vòng hỏi-đáp. Node `cto` giữ `status: running`, **chưa** ghi signoff của bên chưa đồng ý. |
 | `turn > max_turns` | Dừng Sync Session, **không tự chọn bên thắng**. Node `cto` → `waiting_human` + `escalated_at`, thông báo theo `kernel/config/escalation.json[<key>]` (`key` từ `escalation.notify` của bên đang treo). Quay lại bằng `kernel/tools/resume.py`. |
 | Có signoff nhưng nội dung thiếu (vd edge case chưa có phương án) | Đây là lỗi nội dung, không phải cơ chế — bên phát hiện mở `request` mới, `signoffs` của bên kia **bị xoá** để buộc ký lại sau khi sửa. |
+| `validate.py` báo `E9`/`E10`/`E11` | Lỗi của `ba` (khối `PROJ` hoặc `domain-map.json` thiếu) — **không** ký thay, trả về `ba` bổ sung rồi chạy lại `validate.py` trước khi ký lại. |
 
 ---
 

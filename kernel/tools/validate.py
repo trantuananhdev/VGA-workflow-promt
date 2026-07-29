@@ -13,6 +13,7 @@ Exit code: 0 = khong co ERROR (co the co WARN) | 1 = co ERROR
 """
 import json
 import os
+import re
 import sys
 import glob
 import argparse
@@ -24,8 +25,13 @@ if hasattr(sys.stdout, "reconfigure"):
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 FINDINGS = []          # (severity, code, message)
-STATUSES = {"blocked", "ready", "running", "done", "waiting_human", "failed"}
+STATUSES = {"blocked", "ready", "running", "done",
+            "waiting_human", "awaiting_human_decision", "failed"}
 TERMINAL_STUCK = {"waiting_human", "failed"}
+# awaiting_human_decision KHONG nam trong TERMINAL_STUCK: no la buoc BINH THUONG cua quy trinh
+# (nguoi chon phuong an theme o gate7), khong phai loi. Tron vao TERMINAL_STUCK se lam
+# gate.consecutive_fail va C22 mat nghia. Xem kernel/gates/gate7-design-system-lock.md.
+AWAITING_DECISION = "awaiting_human_decision"
 MSG_TYPES = {"handoff", "request", "response"}
 
 
@@ -334,12 +340,24 @@ def check_wbs(wbs, units, mans, profile, limits=None):
 
         # quy tac giao tap
         if unit:
+            # PHAM VI "cung track" — KHONG phai cung track_id.
+            # Track `build` co NHIEU track_id cung luc: PROJ (scope project), REL (scope release),
+            # US014/US015... (scope story) — xem wbs.json._tracks. Node scope=story hoan toan
+            # duoc phep depends_on node scope=project (US014-mobile-screen -> PROJ-mobile-shell,
+            # US014-designer-screen -> PROJ-design-system). Neu gom peer theo track_id thi
+            # PROJ-* bi coi la "khong co node trong track" -> giao tap loai no ra -> C10 bao sai
+            # tren MOI node mobile-screen/designer-screen cua moi project thuc.
+            # Rieng intake/runtime: moi track_id la 1 the hien DOC LAP (BUG042 vs BUG043 co the
+            # co entry unit khac nhau) nen van phai gom theo track_id.
+            if n.get("track") == "build":
+                peers = [m for m in nodes.values() if m.get("track") == "build"]
+            else:
+                peers = [m for m in nodes.values() if m.get("track_id") == n.get("track_id")]
             track_units = set()
-            for m in nodes.values():
-                if m.get("track_id") == n.get("track_id"):
-                    tu = by_unit.get((m.get("role"), m.get("phase")))
-                    if tu:
-                        track_units.add(tu)
+            for m in peers:
+                tu = by_unit.get((m.get("role"), m.get("phase")))
+                if tu:
+                    track_units.add(tu)
             monet = any(c["unit"] in track_units for c in units[unit].get("conditional_depends_on", []))
             exp_units = expected_deps(units, unit, track_units, monet)
             got_units = sorted({by_unit.get((nodes[d].get("role"), nodes[d].get("phase")))
@@ -422,6 +440,26 @@ def check_wbs(wbs, units, mans, profile, limits=None):
                 warn("C21", f"node {nid} dang cho nguoi va CHAN {len(downstream)} node: "
                             f"{[m['node_id'] for m in downstream]} — chay "
                             f"`python kernel/tools/resume.py {nid} --note \"...\"` de go")
+        # C31-C33: trang thai CHO NGUOI QUYET DINH (khong phai loi) — doi xung voi C20/C21
+        if st == AWAITING_DECISION:
+            if not g.get("decision_requested_at"):
+                err("C31", f"node {nid}: status={AWAITING_DECISION} nhung gate.decision_requested_at "
+                            f"rong -> khong ro nguoi co that su duoc hoi chua (doi xung voi C20). "
+                            f"Xem kernel/gates/gate7-design-system-lock.md")
+            if g.get("escalated_at"):
+                err("C33", f"node {nid}: status={AWAITING_DECISION} nhung co gate.escalated_at "
+                            f"-> dang tron 2 primitive. escalated_at CHI thuoc waiting_human (loi); "
+                            f"cho nguoi quyet dinh la buoc binh thuong, dung decision_requested_at.")
+            downstream = [m for m in nodes.values() if nid in m.get("depends_on", [])]
+            if downstream:
+                warn("C32", f"node {nid} dang cho NGUOI QUYET DINH va chan {len(downstream)} node: "
+                            f"{[m['node_id'] for m in downstream]} — go bang "
+                            f"`python kernel/tools/resume.py {nid} --decision <id> --note \"...\"`")
+        elif g.get("decision_requested_at"):
+            warn("C34", f"node {nid}: co gate.decision_requested_at nhung status={st!r} "
+                        f"(khong phai {AWAITING_DECISION}) -> field cu chua duoc xoa luc resume, "
+                        f"co the lam nguoi doc wbs.json tuong node dang cho quyet dinh")
+
         max_resume = ((limits or {}).get("node") or {}).get("max_resume_before_review", 3)
         if st in TERMINAL_STUCK and len(g.get("resume_history") or []) >= max_resume:
             warn("C22", f"node {nid} da duoc cuu {len(g['resume_history'])} lan ma van treo "
@@ -557,7 +595,7 @@ def check_mailbox(msg_schema, nodes, units, dag, mans, limits):
                 err("D12", f"mailbox/{name}: processed_at=null nhung node {nid} da done "
                             f"-> se bi tieu thu LAI moi vong (loop vo han)")
             if fm.get("processed_at") is not None and t == "handoff" \
-                    and node.get("status") not in ("done", "failed", "ready"):
+                    and node.get("status") not in ("done", "failed", "ready", AWAITING_DECISION):
                 warn("D13", f"mailbox/{name}: da processed_at nhung node {nid} van "
                             f"{node.get('status')!r} — kiem tra lai buoc cap nhat trang thai")
 
@@ -617,6 +655,68 @@ def check_crossrefs(mans, profile):
                 if r and r not in agents:
                     err("E8", f"{os.path.relpath(f, ROOT)}: anchor-tag role {r!r} khong phai agent "
                                f"-> context_compile se khong bao gio trich duoc cho role nay")
+
+
+# ─────────────────────────── H. Tien de Gate 1 cho nhanh Design (E9-E11) ───────────────────────────
+_PROJ_ANCHOR_RE = re.compile(r"<!--\s*tier:2\s+role:([a-z0-9,\-]+)\s+story:([A-Za-z0-9\-]+)\s*-->")
+
+
+def check_design_prereqs():
+    """Cuong che 2 dieu kien MOI trong kernel/gates/gate1-ba-cto-signoff.md (them cung dot voi
+    nhanh Design/domain — xem shared/lessons_learned.md).
+
+    Truoc day node scope=project (design-system, mobile-shell...) nhan Tier2 RONG ma khong ai
+    bao (guard trong context_compile.py chi ap dung cho node co story_id that). Da vsua guard
+    do, nhung sua o dispatch-time la QUA MUON — story dau tien da mat 1 vong design-system chay
+    roi moi lo. Kiem o day (luc Gate 1, truoc generate_wbs) la re hon nhieu: BA/CTO thay ngay
+    thieu gi ma chua tao node nao ca.
+    """
+    prd = rel("shared", "PRD.md")
+    if not os.path.exists(prd):
+        return
+    txt = open(prd, encoding="utf-8").read()
+    stories, has_proj_designer = set(), False
+    for m in _PROJ_ANCHOR_RE.finditer(txt):
+        roles, story = m.group(1).split(","), m.group(2)
+        if story == "PROJ":
+            has_proj_designer = has_proj_designer or "designer" in roles
+            continue
+        if story == "US-000":
+            continue  # vi du mau trong template, khong phai story that
+        stories.add(story)
+
+    if not has_proj_designer:
+        err("E9", "shared/PRD.md: chua co khoi anchor 'story:PROJ' voi role 'designer' -> "
+                   "design-system se nhan Tier 2 rong va TU BIA design intent (doi tuong nguoi "
+                   "dung/tong mau/app tham chieu neu clone). BA phai viet TRUOC khi Gate 1 pass "
+                   "lan dau (agents/ba/AGENT.md muc B). context_compile.py se chan dispatch neu "
+                   "thieu, nhung bat o day re hon nhieu (truoc khi co node nao duoc tao).")
+
+    if not stories:
+        return  # chua co story that -> khong con gi de doi chieu voi domain-map.json
+
+    dm_path = rel("shared", "contracts", "domain-map.json")
+    dm_stories = None
+    if os.path.exists(dm_path):
+        try:
+            dm = json.load(open(dm_path, encoding="utf-8"))
+            dm_stories = {s.get("story_id") for s in dm.get("stories", [])
+                          if isinstance(s, dict) and s.get("story_id")
+                          and s.get("story_id") != "US-000"}
+        except Exception as e:
+            err("E11", f"shared/contracts/domain-map.json: JSON khong parse duoc — {e}")
+    else:
+        err("E11", "shared/contracts/domain-map.json: khong ton tai -> "
+                    "agents/ba/skills/classify_domain/ chua chay lan nao")
+
+    if dm_stories is not None:
+        missing = stories - dm_stories
+        if missing:
+            err("E10", f"story {sorted(missing)} co trong shared/PRD.md nhung KHONG co entry "
+                        f"trong shared/contracts/domain-map.json -> designer-screen cua story do "
+                        f"se khong biet nap domain skill nao, se tu doan thay vi dung tri thuc "
+                        f"domain that. Chay agents/ba/skills/classify_domain/ (xem SKILL.md) "
+                        f"truoc khi Gate 1 pass.")
 
 
 # ─────────────────────────── F. Single-writer invariant ───────────────────────────
@@ -878,6 +978,7 @@ def main():
         check_ownership(ownership, units, mans)
         check_boot(boot_schema, nodes, units, mans, dag)
     check_crossrefs(mans, profile)
+    check_design_prereqs()
     if args.selftest and units:
         selftest(units, mans)
 

@@ -161,14 +161,30 @@ def slice_json_entries(path, role, story_id, list_key, default_roles):
 JSON_SHAPES = [
     ("shared/contracts/api-contracts.json", "endpoints", ["cto", "dev-be", "mobile", "qa"]),
     ("shared/capabilities/native.json", "permissions", ["mobile", "ads", "qa", "devops"]),
+    ("shared/contracts/domain-map.json", "stories", ["designer"]),
 ]
 
+# Khoa lat cat cho node KHONG thuoc 1 story (scope=project/release).
+# TRUOC DAY nhung node nay nhan Tier 2 RONG hoan toan — anchor-tag chi co truc `story:`,
+# nen mobile-shell/devops-infra/ads-setup/design-system deu khong nhan duoc gi tu shared/
+# du AGENT.md cua chung khai la "doc anchor-tag slice cua architecture.md/system-spec.md".
+# Voi design-system dieu do la chi mang: no phai suy ra design token ma khong co dau vao nao
+# ve brand/doi tuong nguoi dung/app tham chieu -> se bia ra token. Cach sua nho nhat va dung
+# nguyen tac (quyen doc van khai o anchor-tag, tool chi quet+loc): dung PROJ lam story key
+# cho node scope=project/release. Khong co block nao gan story:PROJ thi ket qua y nhu truoc
+# (rong) — nen thay doi nay tuong thich nguoc hoan toan.
+PROJECT_STORY_KEY = "PROJ"
 
-def gather_tier2(role, story_id):
-    """Quet MOI nguon trong shared/, loc theo (role, story) tu anchor-tag. Tra (blocks, problems)."""
+
+def gather_tier2(role, tier2_key):
+    """Quet MOI nguon trong shared/, loc theo (role, tier2_key) tu anchor-tag. Tra (blocks, problems).
+
+    tier2_key LUON la 1 khoa CU THE — story_id that (node scope=story) hoac PROJECT_STORY_KEY
+    (node scope=project/release, xem build()). KHONG con nhanh "story_id is None" o day: trach
+    nhiem tinh khoa thuoc ve build(), ham nay chi quet+loc theo dung 1 khoa duoc dua vao.
+    """
     blocks, problems = [], []
-    if story_id is None:
-        return blocks, problems  # node scope=project/release: khong co lat cat theo story
+    story_id = tier2_key
 
     # markdown: quet toan bo shared/, quyet dinh boi anchor-tag
     for full in sorted(glob.glob(rel("shared", "**", "*.md"), recursive=True)):
@@ -297,13 +313,22 @@ def build(node_id, args):
         die(f"attempt={attempt} (retry) nhung gate.last_error rong -> retry mu, agent se lam lai "
             f"y nhu lan truoc. Orchestrator phai ghi last_error khi Gate fail.")
 
-    blocks, problems = gather_tier2(role, story_id)
-    if story_id and not blocks:
+    # tier2_key: KHAC voi story_id (field metadata giu nguyen None cho node scope=project,
+    # ghi dung vao frontmatter boot context). Truoc day dung thang story_id lam khoa quet, nen
+    # node scope=project luon co story_id=None -> guard "if story_id and not blocks" duoi day
+    # KHONG BAO GIO chan, du blocks rong hoan toan (bug: design-system se nhan Tier 2 rong ma
+    # khong ai bao — xem shared/lessons_learned.md). Tach rieng tier2_key va bo dieu kien
+    # "if story_id" de guard ap dung DEU cho moi node, khong rieng node co story that.
+    tier2_key = story_id if story_id is not None else PROJECT_STORY_KEY
+    blocks, problems = gather_tier2(role, tier2_key)
+    if not blocks:
         detail = "; ".join(f"{s}: {e}" for s, e in problems) or "khong ro"
-        die(f"KHONG trich duoc Tier 2 nao cho (role={role}, story={story_id}).\n"
+        die(f"KHONG trich duoc Tier 2 nao cho (role={role}, tier2_key={tier2_key!r}).\n"
             f"     Chi tiet: {detail}\n"
-            f"     Day la LOI TAG, khong phai 'story khong co noi dung' — agent se lam viec mu "
-            f"neu dispatch tiep. Sua anchor-tag trong file nguon roi compile lai.")
+            f"     Day la LOI TAG, khong phai 'story/project khong co noi dung' — agent se lam "
+            f"viec mu neu dispatch tiep. Node scope=project/release -> kiem khoi anchor "
+            f"'story:PROJ' co role {role!r} trong shared/architecture.md hoac shared/system-spec.md "
+            f"chua (xem validate.py ma E9). Sua anchor-tag trong file nguon roi compile lai.")
 
     inbox = gather_inbox(node)
     inbox_ids = [fm.get("message_id") for fm, _, _ in inbox]

@@ -1,0 +1,3 @@
+# Layout JSON từng story do unit `designer-screen` ghi: shared/design/screens/<story_id>.json
+# Đây là THƯ MỤC (không phải 1 file đơn) vì designer.concurrency = 2 — 2 story chạy song song
+# mỗi story ghi file riêng, không thể tranh chấp (validate.py mã F3).

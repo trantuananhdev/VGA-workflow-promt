@@ -4,7 +4,7 @@
 > Moi so lieu duoi day derived tu `kernel/memory/wbs.json` + `kernel/mailbox/`;
 > sua tay se lech voi trang thai that va lam MOI agent nhan context sai (day la Tier 0).
 >
-> Sinh luc: 2026-07-27 18:45:50Z
+> Sinh luc: 2026-07-29 06:43:11Z
 
 **Trang thai:** chua co node nao — chua co project nao duoc khoi tao.
 

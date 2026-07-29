@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Theme Preview — chọn 1 phương án</title>
+<!--
+  FILE NÀY CHỈ DÀNH CHO NGƯỜI XEM. Nó KHÔNG phải hợp đồng máy đọc.
+  `mobile-screen` TUYỆT ĐỐI không parse file này — hợp đồng máy đọc là shared/design/tokens.json
+  (token) và shared/design/screens/<story_id>.json (layout). Xem agents/designer/AGENT.md.
+
+  WRITER DUY NHẤT: unit `design-system` (kernel/contracts/data-ownership.json).
+  Sinh lại mỗi lần design-system chạy — không sửa tay, sửa tay sẽ bị ghi đè.
+
+  CÁCH DÙNG: mở file này bằng browser, xem 2-4 phương án dưới dạng MÀN HÌNH THẬT
+  (không phải bảng màu trừu tượng), rồi chốt bằng:
+      python kernel/tools/resume.py PROJ-design-system --decision <theme_id> --note "<lý do>"
+  Không phương án nào ổn thì bỏ --decision và ghi rõ cần sửa gì trong --note.
+
+  BẢN DƯỚI ĐÂY LÀ VÍ DỤ MẪU khớp `themes` mẫu trong shared/design/tokens.json —
+  design-system phải sinh lại theo phương án thật của project.
+-->
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; background: #16181c; color: #e8eaed;
+         font: 15px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #9aa0a6; font-size: 13px; margin-bottom: 24px; }
+  .grid { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+  .col { flex: 1 1 300px; max-width: 360px; }
+  .head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+  .id { font: 600 12px/1 ui-monospace, monospace; background: #2c2f36; color: #cfd3d9;
+        padding: 4px 7px; border-radius: 5px; }
+  .label { font-weight: 600; font-size: 14px; }
+  .why { color: #9aa0a6; font-size: 12.5px; margin: 0 0 10px; min-height: 34px; }
+  /* khung điện thoại — để đánh giá đúng tỉ lệ mobile, không phải block web rộng */
+  .phone { border-radius: 26px; overflow: hidden; border: 1px solid #3a3d44;
+           box-shadow: 0 8px 28px #0008; }
+  .scr { padding: 0; }
+  .swatches { display: flex; gap: 4px; margin-top: 8px; }
+  .sw { flex: 1; height: 20px; border-radius: 4px; border: 1px solid #ffffff22; }
+  .foot { color: #9aa0a6; font-size: 12px; margin-top: 28px; border-top: 1px solid #2c2f36;
+          padding-top: 14px; }
+  code { font: 12px/1 ui-monospace, monospace; background: #2c2f36; padding: 2px 5px;
+         border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<h1>Theme Preview — chọn 1 phương án</h1>
+<p class="sub">
+  Mỗi cột là 1 phương án <strong>đã render thành màn hình thật</strong> (list + card + CTA + trạng thái lỗi),
+  không phải bảng màu trừu tượng — vì bảng màu không cho thấy nhịp spacing và độ tương phản khi dùng thật.
+</p>
+
+<div class="grid">
+
+  <!-- ═══════════════ A-calm ═══════════════ -->
+  <div class="col">
+    <div class="head"><span class="id">A-calm</span><span class="label">Calm</span></div>
+    <p class="why">Trung tính, nhiều khoảng trắng — app đọc nhiều/thao tác lâu.</p>
+    <div class="phone">
+      <div class="scr" style="background:#FBFBF9;color:#1C1D1A;font-size:16px;line-height:24px">
+        <div style="background:#FFFFFF;border-bottom:1px solid #E2E1DC;padding:16px">
+          <div style="font-size:22px;line-height:28px;font-weight:600">Đơn của tôi</div>
+        </div>
+        <div style="padding:16px;display:flex;flex-direction:column;gap:16px">
+          <div style="background:#FFFFFF;border:1px solid #E2E1DC;border-radius:12px;padding:16px">
+            <div style="font-size:13px;line-height:16px;font-weight:600;letter-spacing:.2px;color:#61635E">HÔM NAY</div>
+            <div style="font-weight:600;margin-top:8px">Combo cơm gà xối mỡ</div>
+            <div style="font-size:14px;line-height:20px;color:#61635E;margin-top:4px">2 món · 89.000đ</div>
+            <div style="display:inline-block;margin-top:8px;background:#F1F0EC;color:#2E7D4F;
+                        border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600">✓ Đã giao</div>
+          </div>
+          <div style="background:#FFFFFF;border:1px solid #E2E1DC;border-radius:12px;padding:16px">
+            <div style="font-weight:600">Trà sữa trân châu</div>
+            <div style="font-size:14px;line-height:20px;color:#61635E;margin-top:4px">1 món · 45.000đ</div>
+          </div>
+          <!-- trạng thái lỗi: bắt buộc có trong preview, không chỉ happy path -->
+          <div style="background:#FFFFFF;border:1px solid #B3261E;border-radius:12px;padding:16px">
+            <div style="color:#B3261E;font-weight:600;font-size:14px;line-height:20px">⚠ Mất kết nối</div>
+            <div style="font-size:14px;line-height:20px;color:#61635E;margin-top:4px">Không tải được đơn mới.</div>
+            <div style="margin-top:12px;border:1px solid #2F6F5F;color:#2F6F5F;border-radius:12px;
+                        padding:12px;text-align:center;font-weight:600;font-size:14px">Thử lại</div>
+          </div>
+          <div style="background:#2F6F5F;color:#FFFFFF;border-radius:12px;padding:16px;
+                      text-align:center;font-weight:600">Đặt lại đơn này</div>
+          <div style="background:#EDECE8;color:#A3A5A0;border-radius:12px;padding:16px;
+                      text-align:center;font-weight:600">Đang xử lý…</div>
+        </div>
+      </div>
+    </div>
+    <div class="swatches">
+      <div class="sw" style="background:#2F6F5F"></div><div class="sw" style="background:#7A8C99"></div>
+      <div class="sw" style="background:#F1F0EC"></div><div class="sw" style="background:#2E7D4F"></div>
+      <div class="sw" style="background:#B4690E"></div><div class="sw" style="background:#B3261E"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ B-bold ═══════════════ -->
+  <div class="col">
+    <div class="head"><span class="id">B-bold</span><span class="label">Bold</span></div>
+    <p class="why">Tương phản cao, CTA nổi — app dẫn dắt hành động mua/đặt.</p>
+    <div class="phone">
+      <div class="scr" style="background:#FFFFFF;color:#0F172A;font-size:16px;line-height:24px">
+        <div style="background:#FFFFFF;border-bottom:1px solid #DDE2EC;padding:16px">
+          <div style="font-size:22px;line-height:28px;font-weight:700;letter-spacing:-.2px">Đơn của tôi</div>
+        </div>
+        <div style="padding:16px;display:flex;flex-direction:column;gap:16px">
+          <div style="background:#F3F5FA;border-radius:14px;padding:16px">
+            <div style="font-size:14px;line-height:18px;font-weight:700;letter-spacing:.2px;color:#5A6478">HÔM NAY</div>
+            <div style="font-weight:700;margin-top:8px">Combo cơm gà xối mỡ</div>
+            <div style="font-size:14px;line-height:20px;color:#5A6478;margin-top:4px">2 món · 89.000đ</div>
+            <div style="display:inline-block;margin-top:8px;background:#12805C;color:#FFFFFF;
+                        border-radius:999px;padding:4px 10px;font-size:12px;font-weight:700">✓ Đã giao</div>
+          </div>
+          <div style="background:#F3F5FA;border-radius:14px;padding:16px">
+            <div style="font-weight:700">Trà sữa trân châu</div>
+            <div style="font-size:14px;line-height:20px;color:#5A6478;margin-top:4px">1 món · 45.000đ</div>
+          </div>
+          <div style="background:#FFFFFF;border:2px solid #DC2626;border-radius:14px;padding:16px">
+            <div style="color:#DC2626;font-weight:700;font-size:14px;line-height:20px">⚠ Mất kết nối</div>
+            <div style="font-size:14px;line-height:20px;color:#5A6478;margin-top:4px">Không tải được đơn mới.</div>
+            <div style="margin-top:12px;border:2px solid #1A56DB;color:#1A56DB;border-radius:14px;
+                        padding:12px;text-align:center;font-weight:700;font-size:14px">Thử lại</div>
+          </div>
+          <div style="background:#1A56DB;color:#FFFFFF;border-radius:14px;padding:16px;
+                      text-align:center;font-weight:700;box-shadow:0 2px 6px #1A56DB55">Đặt lại đơn này</div>
+          <div style="background:#EEF1F6;color:#98A1B2;border-radius:14px;padding:16px;
+                      text-align:center;font-weight:700">Đang xử lý…</div>
+        </div>
+      </div>
+    </div>
+    <div class="swatches">
+      <div class="sw" style="background:#1A56DB"></div><div class="sw" style="background:#F59E0B"></div>
+      <div class="sw" style="background:#F3F5FA"></div><div class="sw" style="background:#12805C"></div>
+      <div class="sw" style="background:#B45309"></div><div class="sw" style="background:#DC2626"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ C-dense ═══════════════ -->
+  <div class="col">
+    <div class="head"><span class="id">C-dense</span><span class="label">Dense</span></div>
+    <p class="why">Nhiều dữ liệu trên 1 màn — app tra cứu/quản lý số liệu.</p>
+    <div class="phone">
+      <div class="scr" style="background:#F7F8FA;color:#141A21;font-size:15px;line-height:22px">
+        <div style="background:#FFFFFF;border-bottom:1px solid #D9DEE5;padding:12px">
+          <div style="font-size:20px;line-height:26px;font-weight:600">Đơn của tôi</div>
+        </div>
+        <div style="padding:12px;display:flex;flex-direction:column;gap:12px">
+          <div style="background:#FFFFFF;border:1px solid #D9DEE5;border-radius:8px;padding:12px">
+            <div style="font-size:12px;line-height:16px;font-weight:600;letter-spacing:.3px;color:#5A6572">HÔM NAY</div>
+            <div style="font-weight:600;margin-top:6px">Combo cơm gà xối mỡ</div>
+            <div style="font-size:13px;line-height:18px;color:#5A6572;margin-top:2px">2 món · 89.000đ</div>
+            <div style="display:inline-block;margin-top:6px;background:#EDF0F4;color:#0F7A4F;
+                        border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600">✓ Đã giao</div>
+          </div>
+          <div style="background:#FFFFFF;border:1px solid #D9DEE5;border-radius:8px;padding:12px">
+            <div style="font-weight:600">Trà sữa trân châu</div>
+            <div style="font-size:13px;line-height:18px;color:#5A6572;margin-top:2px">1 món · 45.000đ</div>
+          </div>
+          <div style="background:#FFFFFF;border:1px solid #C0271F;border-radius:8px;padding:12px">
+            <div style="color:#C0271F;font-weight:600;font-size:13px;line-height:18px">⚠ Mất kết nối</div>
+            <div style="font-size:13px;line-height:18px;color:#5A6572;margin-top:2px">Không tải được đơn mới.</div>
+            <div style="margin-top:12px;border:1px solid #0B5FA5;color:#0B5FA5;border-radius:8px;
+                        padding:12px;text-align:center;font-weight:600;font-size:13px">Thử lại</div>
+          </div>
+          <div style="background:#0B5FA5;color:#FFFFFF;border-radius:8px;padding:12px;
+                      text-align:center;font-weight:600">Đặt lại đơn này</div>
+          <div style="background:#E9ECF1;color:#9AA3AF;border-radius:8px;padding:12px;
+                      text-align:center;font-weight:600">Đang xử lý…</div>
+        </div>
+      </div>
+    </div>
+    <div class="swatches">
+      <div class="sw" style="background:#0B5FA5"></div><div class="sw" style="background:#5B6B7C"></div>
+      <div class="sw" style="background:#EDF0F4"></div><div class="sw" style="background:#0F7A4F"></div>
+      <div class="sw" style="background:#9A5B00"></div><div class="sw" style="background:#C0271F"></div>
+    </div>
+  </div>
+
+</div>
+
+<p class="foot">
+  Mỗi phương án PHẢI render đủ: 1 màn list, 1 card, 1 CTA chính, 1 nút phụ, 1 <strong>trạng thái lỗi</strong>,
+  1 <strong>trạng thái disabled/loading</strong> — nếu thiếu thì người chọn bằng cảm giác màu chứ không thấy
+  được app dùng thật ra sao (đúng lý do file này tồn tại thay vì 1 bảng màu).<br>
+  Chốt: <code>python kernel/tools/resume.py PROJ-design-system --decision A-calm --note "..."</code>
+</p>
+
+</body>
+</html>

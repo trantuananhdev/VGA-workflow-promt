@@ -35,7 +35,7 @@ Không có file capacity riêng: `process-table.json` đã bị bỏ vì mọi f
 
 ## Khi nhiều node độc lập cùng `ready` và ĐỦ slot
 
-Spawn **tất cả** — đây chính là điểm tận dụng DAG song song. Ví dụ ngay sau Gate 2: `US014-designer`, `PROJ-devops-infra`, `US014-dev-be`, `PROJ-mobile-shell` đều `ready` và thuộc 4 role khác nhau → chạy đồng thời cả 4, không ép tuần tự.
+Spawn **tất cả** — đây chính là điểm tận dụng DAG song song. Ví dụ ngay sau Gate 2: `PROJ-design-system`, `PROJ-devops-infra`, `US014-dev-be`, `PROJ-mobile-shell` đều `ready` và thuộc 4 role khác nhau → chạy đồng thời cả 4, không ép tuần tự. (`US014-designer-screen` thì `blocked` — nó chờ `PROJ-design-system` done, xem `routing-table.md`.)
 
 ---
 

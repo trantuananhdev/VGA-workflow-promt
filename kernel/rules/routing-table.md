@@ -39,15 +39,25 @@ generate_wbs  (skill, đọc project-profile.json + sinh wbs.json — CHỈ tạ
    │
    ├──────────────┬──────────────┬────────────────┐
    ▼              ▼              ▼                ▼
-designer       devops         dev-be         mobile-shell
-(cần: PRD      (devops-infra:  (cần: db-schema  (cần: architecture
- user-flow +    chỉ cần        + api-contracts)  + system-spec —
- api-contracts) architecture)      │             permission, push,
-   │              │                │             deep link, min OS)
+design-system  devops         dev-be         mobile-shell
+(1 lần/project) (devops-infra:  (cần: db-schema  (cần: architecture
+ tokens.json +   chỉ cần        + api-contracts)  + system-spec —
+ theme-preview   architecture)      │             permission, push,
+ .html)           │                │             deep link, min OS)
+   │              │                │                │
+   ▼ Gate 7 — NGƯỜI chọn 1 phương án theme            │
+   │  (node → `awaiting_human_decision`, KHÔNG phải lỗi;│
+   │   nhả slot concurrency, 3 nhánh kia chạy bình thường)
+   │              │                │                │
+   ▼              │                │                │
+designer-screen   │                │                │
+(per story —      │                │                │
+ layout JSON,     │                │                │
+ trỏ token)       │                │                │
    │              │                │                │
    └──────┬───────┼────────────────┼────────────────┘
           ▼       │                │
-    mobile-screen │                │   ◄── cần: wireframe (designer) + mobile-shell xong
+    mobile-screen │                │   ◄── cần: wireframe (designer-screen) + mobile-shell xong
     (per story)   │                │       + api-contracts freeze. KHÔNG chờ dev-be code xong
           │       │                │       (contract-first, dùng mock)
           ▼       │                │
@@ -67,8 +77,9 @@ designer       devops         dev-be         mobile-shell
 **Lưu ý:** `devops` KHÔNG feed vào `mobile` — 2 nhánh độc lập hoàn toàn, chỉ cùng xuất phát từ Gate 1. `devops-infra` chạy xong sớm rồi rảnh chờ tới khi `qa` pass Gate 4 mới kích hoạt phase `devops-release` (xem `agents/devops/AGENT.md` — 2 phase trong cùng 1 agent).
 
 **Quy tắc phụ thuộc Core (grammar — `wbs.json` không được vi phạm):**
-- `designer`, `devops-infra`, `dev-be`, `mobile-shell` chỉ phụ thuộc `ba+cto signoff` — được phép chạy song song.
-- `mobile-screen` phụ thuộc `designer` HOÀN THÀNH (story đó) + `mobile-shell` HOÀN THÀNH (1 lần đầu) + `api-contracts.json` freeze — KHÔNG phụ thuộc `dev-be` hoàn thành.
+- `design-system`, `devops-infra`, `dev-be`, `mobile-shell` chỉ phụ thuộc `ba+cto signoff` — được phép chạy song song.
+- **`designer-screen` phụ thuộc `design-system` HOÀN THÀNH** (tức Gate 7 pass = người đã chọn theme và token đã khoá) — **đây là NGOẠI LỆ CÓ CHỦ ĐÍCH** so với nguyên tắc "nhánh nào cũng chỉ chờ Gate 1" của toàn hệ thống. Lý do: nếu `designer-screen` chạy trước khi có `shared/design/tokens.json` đã khoá, nó lại tự quyết màu/spacing riêng cho từng story — đúng vấn đề mà tầng token sinh ra để giải quyết, và Gate 5 điều 5 sẽ fail hàng loạt. Đánh đổi: story đầu tiên chờ thêm 1 vòng người-chọn-theme, **1 lần/project**, không lặp per-story; 3 nhánh song song còn lại không bị ảnh hưởng. Xem `kernel/gates/gate7-design-system-lock.md`.
+- `mobile-screen` phụ thuộc `designer-screen` HOÀN THÀNH (story đó) + `mobile-shell` HOÀN THÀNH (1 lần đầu) + `api-contracts.json` freeze — KHÔNG phụ thuộc `dev-be` hoàn thành.
 - `qa` phụ thuộc cả `dev-be` và `mobile-screen` hoàn thành (điểm tích hợp bắt buộc tuần tự) — cộng `ads-placement` nếu story có `Monetization: true`.
 - `devops-release` phụ thuộc `qa` pass (Gate 4).
 
@@ -78,7 +89,7 @@ designer       devops         dev-be         mobile-shell
 
 | Capability Agent | Điều kiện activate | Plug vào DAG ở đâu | Feed vào |
 |---|---|---|---|
-| `ads` (phase `ads-setup`) | nằm trong `active_capability_agents` | Song song `designer`/`devops-infra`/`dev-be`/`mobile-shell`, chỉ cần Gate 1 | Không chặn ai — chạy xong rồi chờ |
+| `ads` (phase `ads-setup`) | nằm trong `active_capability_agents` | Song song `design-system`/`devops-infra`/`dev-be`/`mobile-shell`, chỉ cần Gate 1 | Không chặn ai — chạy xong rồi chờ |
 | `ads` (phase `ads-placement`) | như trên, VÀ chỉ cho story có `Monetization: true` trong PRD | SAU khi `mobile-screen` build xong screen của ĐÚNG story đó (không phải sau toàn bộ `mobile`) | `qa` CHỜ thêm `ads-placement` cho story monetization trước khi coi integration-ready |
 
 **Lưu ý hướng phụ thuộc:** `ads-setup` chạy song song ngay từ đầu, còn `ads-placement` đi SAU `mobile-screen` — 2 phase cùng 1 agent nhưng vị trí trong DAG hoàn toàn khác nhau. `generate_wbs` phải đọc đúng bảng này khi tạo node, không suy diễn theo tên agent.
@@ -91,7 +102,7 @@ designer       devops         dev-be         mobile-shell
 
 | Event | Entry point | Sub-DAG | Bỏ qua |
 |---|---|---|---|
-| `bug_report` | `dev-be`/`mobile`/`ads` (tuỳ vị trí lỗi) | agent tương ứng → qa → devops(hotfix) | po, ba, cto, designer |
+| `bug_report` | `dev-be`/`mobile`/`ads` (tuỳ vị trí lỗi) | agent tương ứng → qa → devops(hotfix) | po, ba, cto, designer (cả 2 phase) |
 | `crash_alert` (tự động từ Sentry/Crashlytics) | `mobile` hoặc `dev-be` (theo stack trace) | agent tương ứng → qa → devops(hotfix) | po, ba, cto, designer |
 | `feature_request` size S | `po` (triage) | po → `dev-be`/`mobile` thẳng → qa → devops | ba, cto, designer |
 | `feature_request` size M/L/XL | `po` | Chạy lại Core DAG đầy đủ từ `[ba+cto]` (+ capability plug-in nếu cần) | — |

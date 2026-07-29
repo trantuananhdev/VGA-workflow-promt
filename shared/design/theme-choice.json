@@ -1,0 +1,15 @@
+{
+  "_comment": "QUYẾT ĐỊNH THẨM MỸ CỦA NGƯỜI — owner `__human__` trong kernel/contracts/data-ownership.json. Agent TUYỆT ĐỐI không ghi file này; agent `design-system` chỉ ĐỌC nó rồi khoá shared/design/tokens.json theo đúng lựa chọn.",
+  "_how_to_write": "KHÔNG sửa tay. Ghi bằng: python kernel/tools/resume.py PROJ-design-system --decision <theme_id> --note \"<lý do chọn>\"  — tool ghi nguyên tử cả file này + wbs.json + event-log, và đưa node từ `awaiting_human_decision` về `ready` để design-system chạy lại khoá token. Sửa tay dễ quên đổi status node -> node nằm chờ vĩnh viễn dù đã có lựa chọn.",
+  "_why_separate_file": "Nếu để agent tự ghi lựa chọn vào tokens.json thì không có mốc nào kiểm được là NGƯỜI đã thật sự chọn — gate7 lại thành 'agent tự nhận xong là xong', đúng lỗi mà gate5 sinh ra để chặn. Tách file cho phép Gate 7 kiểm 2 phía độc lập: lựa chọn của người (file này) và bản khoá của agent (tokens.json.chosen_theme).",
+
+  "schema_version": 1,
+  "chosen_theme": null,
+  "decided_at": null,
+  "decided_by": null,
+  "note": null,
+
+  "_note_field": "note là BẮT BUỘC khi quyết định (resume.py chặn nếu thiếu) — lý do chọn là thứ duy nhất giải thích được vì sao app trông như vậy cho người vào dự án sau, và là dữ liệu cho lớp Evolution (ORCHESTRATOR.md §9).",
+  "_rejected_note": "Nếu người xem theme-preview.html và KHÔNG chọn phương án nào (yêu cầu làm lại): dùng `resume.py PROJ-design-system --note \"<yêu cầu sửa gì>\"` KHÔNG kèm --decision. Node về `ready`, design-system dựng lại phương án mới. Đây mới là fail thật -> tính vào gate.consecutive_fail như mọi gate khác.",
+  "history": []
+}

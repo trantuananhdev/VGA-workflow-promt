@@ -111,6 +111,23 @@ def build(wbs):
         L.append("- (khong co) — neu day KHONG phai vi da xong het thi la dau hieu treo, xem Blocker")
     L.append("")
 
+    # Cho NGUOI QUYET DINH — tach hoan toan khoi Blocker vi day KHONG phai loi.
+    # Gop vao Blocker se lam today.md (Tier 0, nap cho MOI agent) bao "co 1 blocker"
+    # cho mot buoc hoan toan binh thuong cua quy trinh.
+    # Xem kernel/gates/gate7-design-system-lock.md.
+    waiting_dec = by["awaiting_human_decision"]
+    if waiting_dec:
+        L.append("## Dang cho NGUOI QUYET DINH (khong phai loi)")
+        for n in waiting_dec:
+            g = n.get("gate") or {}
+            blocks = [m["node_id"] for m in nodes if n["node_id"] in m.get("depends_on", [])]
+            L.append(f"- {label(n)} — gate `{g.get('name')}`, hoi luc `{g.get('decision_requested_at')}`")
+            if blocks:
+                L.append(f"  - dang chan: {', '.join(f'`{b}`' for b in blocks)}")
+            L.append(f"  - chon bang: `python kernel/tools/resume.py {n['node_id']} "
+                     f"--decision <id> --note \"...\"`")
+        L.append("")
+
     stuck = by["waiting_human"] + by["failed"]
     L.append("## Blocker")
     if stuck:
@@ -171,9 +188,12 @@ def build(wbs):
         L.append(f"- PHA A: tieu thu {len(msgs)} message dang cho")
     if by["ready"]:
         L.append(f"- PHA B: dispatch {len(by['ready'])} node ready (kiem concurrency truoc)")
+    if waiting_dec:
+        L.append(f"- NGUOI can chon phuong an cho {len(waiting_dec)} node "
+                 f"(mo shared/design/theme-preview.html) — de do thi nhanh design nam cho")
     if stuck:
         L.append(f"- Xu ly {len(stuck)} blocker — de do thi downstream nam blocked vo ich")
-    if not (by["running"] or msgs or by["ready"] or stuck):
+    if not (by["running"] or msgs or by["ready"] or stuck or waiting_dec):
         L.append("- Khong con viec nao chay duoc. Neu chua done het -> DAG co van de, chay validate.py")
     return "\n".join(L) + "\n"
 

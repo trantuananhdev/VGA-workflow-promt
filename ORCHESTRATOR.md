@@ -58,7 +58,7 @@ Chi tiết đầy đủ nằm trong các file tương ứng — Orchestrator PH�
 | `event-log.jsonl` | **Audit thuần** — append-only, mỗi dòng 1 span có `task_id`/`node_id`. Dùng cho lớp Evolution (§9), KHÔNG phải nguồn trạng thái scheduler | Orchestrator + `resume.py`, mọi lần route/gate/message |
 
 **SSOT — chỉ 1 file trạng thái, mọi thứ khác suy ra được:**
-- **Capacity** (bao nhiêu instance của 1 role đang chạy) = **ĐẾM** node `status:running` có `role` đó trong `wbs.json`. Không lưu riêng ở đâu. (`process-table.json` đã bị bỏ: mọi field của nó đều derived, và `current_task` số ít vốn không biểu diễn được `concurrency > 1`.)
+- **Capacity** (bao nhiêu instance của 1 role đang chạy) = **ĐẾM** node `status:running` có `role` đó trong `wbs.json`. Không lưu riêng ở đâu. (`process-table.json` đã bị bỏ: mọi field của nó đều derived, và `current_task` số ít vốn không biểu diễn được `concurrency > 1`.) Hệ quả có chủ đích: node `awaiting_human_decision` **không** giữ slot — trong lúc chờ người chọn theme, `designer` vẫn còn đủ 2 slot cho việc khác.
 - **Đếm fail để escalate** nằm ở `node.gate.consecutive_fail` (per-node), KHÔNG per-role — fail 3 lần ở story A không được phép chặn story B.
 - **Ngưỡng** escalate vẫn ở `manifest.json` (`escalation.after_fail`) vì đó là config tĩnh; **kênh** escalate chỉ ở `kernel/config/escalation.json`, manifest chỉ tham chiếu key.
 - Nếu Orchestrator chết giữa vòng: khôi phục bằng cách đọc `wbs.json` + quét message `processed_at: null`. **Không cần replay `event-log.jsonl`.**
@@ -119,8 +119,20 @@ Orchestrator chỉ tương tác với Agent qua **2 kênh**: (a) boot context kh
 | **Gate 2** | `gate2-wbs-valid.md` | `wbs.json` không vi phạm dependency grammar trong `routing-table.md` | Sau `generate_wbs` |
 | **Gate 3** | `gate3-dev-to-qa.md` | Lint/test pass 0 lỗi, PR mở + CI xanh (`git_workflow`) | 1 chiều, có proof (log) |
 | **Gate 4** | `gate4-qa-to-release.md` | Test coverage đạt ngưỡng, 0 crash khởi động, log pass đính kèm | 1 chiều, có proof |
+| **Gate 5** | `gate5-design-complete.md` | Đủ UI state, `data_bindings` + **token** trỏ key tồn tại thật, domain tag hợp lệ | 1 chiều, lookup |
+| **Gate 6** | `gate6-release-verified.md` | Release đã lên chợ + monitoring nhận event thật | 1 chiều, có proof |
+| **Gate 7** | `gate7-design-system-lock.md` | **NGƯỜI đã chọn 1 phương án theme** + token đã khoá đúng lựa chọn + a11y đạt ngưỡng | **Cần người quyết định** |
 
-**Red flag — dừng ngay, không advance:** output chứa "should work"/"probably", Gate pass nhưng không có log/proof đính kèm, Sync Session vượt `max_turns` mà chưa escalate, `doc_drift_detected` bị bỏ qua.
+**Gate 7 là gate duy nhất có kết quả thứ ba** ngoài pass/fail: `needs_human_decision` → node `awaiting_human_decision`. Đây là primitive RIÊNG, không dùng lại `waiting_human`:
+
+| | `waiting_human` | `awaiting_human_decision` |
+|---|---|---|
+| Ý nghĩa | Gate fail hết lượt retry — **LỖI** | Bước bình thường, **không phải lỗi** |
+| `consecutive_fail` | Đã ≥ `after_fail` | **Không tăng** |
+| Field bắt buộc | `gate.escalated_at` | `gate.decision_requested_at` |
+| Quay lại | `resume.py <node> --note` | `resume.py <node> --decision <id> --note` |
+
+**Red flag — dừng ngay, không advance:** output chứa "should work"/"probably", Gate pass nhưng không có log/proof đính kèm, Sync Session vượt `max_turns` mà chưa escalate, `doc_drift_detected` bị bỏ qua, **node `awaiting_human_decision` mà `consecutive_fail` bị tăng** (đang trộn 2 primitive — validator `C33`).
 
 ---
 
@@ -202,6 +214,22 @@ loop:
               node.status = "done"; node.finished_at = now
               node.gate.result = "pass"; node.gate.consecutive_fail = 0
               RECOMPUTE_READY()                           # <-- mở khoá downstream
+
+          elif gate.needs_human_decision:                 # <-- KHÔNG phải fail. Hiện chỉ Gate 7.
+              # Gate trả kết quả thứ BA (ngoài pass/fail): "agent làm đúng phần của nó rồi,
+              # nhưng bước tiếp theo là NGƯỜI phải chọn". Ví dụ duy nhất hiện tại: gate7 thấy
+              # design-system đã dựng đủ phương án theme nhưng shared/design/theme-choice.json
+              # chưa có lựa chọn nào.
+              node.status = "awaiting_human_decision"
+              node.gate.decision_requested_at = now
+              # KHÔNG tăng consecutive_fail, KHÔNG set escalated_at, KHÔNG set last_error —
+              # 3 field đó thuộc ngữ nghĩa LỖI. Trộn vào đây làm chúng mất nghĩa và today.md
+              # sẽ báo "1 blocker" cho một bước hoàn toàn bình thường (validator C31/C33).
+              notify(escalation.json[manifest[node.role].escalation.notify])   # thông báo THƯỜNG
+              # Node nhả slot concurrency (capacity chỉ đếm status:running) -> mọi nhánh song
+              # song khác chạy bình thường trong lúc chờ người.
+              # Đường quay lại: python kernel/tools/resume.py <node_id> --decision <id> --note "..."
+              #   (không kèm --decision = người từ chối mọi phương án = fail THẬT, tăng bộ đếm)
           else:
               node.gate.consecutive_fail += 1
               node.gate.last_error = <lý do cụ thể>

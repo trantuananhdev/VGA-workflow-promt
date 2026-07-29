@@ -1,5 +1,7 @@
 {
   "_comment": "Chỉ giữ thuộc tính TÀI NGUYÊN của agent này. Quan hệ phụ thuộc/trigger KHÔNG khai ở đây — kernel/contracts/dag.json là authority duy nhất (trước đây khai cả 2 nơi và đã lệch 5/9 agent). Orchestrator Event Loop chỉ đọc: core, model_tier, max_context_tokens, concurrency, escalation.",
+  "_concurrency_reason": "2 = 2 node `designer-screen` (2 story khác nhau) chạy song song. An toàn vì mỗi node ghi 1 file riêng trong thư mục shared/design/screens/ (validate.py mã F3). Phase `design-system` có scope project nên chỉ tồn tại đúng 1 node, không cạnh tranh với chính nó.",
+  "_max_context_reason": "6000 giữ nguyên dù phase designer-screen nay phải nạp thêm 1-2 domain skill: domain skill được nạp CHỌN LỌC theo shared/contracts/domain-map.json (đúng domain của story), không nạp cả thư viện. Nếu context_compile báo vượt ngân sách thì đó là dấu hiệu domain skill viết quá dài — cắt bớt skill, KHÔNG nâng số này (nâng là chuyển thuế sang mọi story).",
   "agent_id": "designer",
   "core": true,
   "model_tier": "sonnet",

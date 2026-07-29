@@ -1,0 +1,65 @@
+{
+  "_comment": "Bản đồ DOMAIN NGHIỆP VỤ theo từng story/module. WRITER DUY NHẤT: unit `ba` (xem kernel/contracts/data-ownership.json), sinh bởi agents/ba/skills/classify_domain/. READER: `designer` (phase designer-screen) — dùng để biết nạp domain skill nào trong agents/designer/skills/domain/ cho story đang xử lý.",
+  "_why_not_project_level": "1 project thật gần như luôn TRỘN nhiều domain ở cấp module: app giao đồ ăn = `on-demand-booking` cho luồng đặt món, `social-community` cho chat với tài xế, `fintech-payment` cho ví/thanh toán. Nếu khai 1 field `domain` duy nhất cho cả project (như PO khai lúc intake) thì mọi module phụ sẽ bị áp sai convention UX. Vì vậy domain suy luận Ở CẤP STORY, và 1 story được phép có NHIỀU domain.",
+  "_why_ba_not_po": "`ba` là agent duy nhất đọc hết PRD theo từng Epic trước Gate 1 — đúng thời điểm và đúng dữ liệu để suy luận. Đặt ở `po` thì lúc đó chưa có story list; đặt ở `designer` thì phát hiện muộn (sau Gate 1) và mỗi story lại suy luận lại từ đầu. KHÔNG tạo unit/gate mới cho việc này (tránh thêm phụ thuộc tuần tự).",
+  "_profile_override": "Field `domain` (nếu có) trong kernel/memory/project-profile.json do PO khai chỉ là GỢI Ý ƯU TIÊN, không thay thế suy luận. PO lúc đầu dự án thường chỉ nắm domain chính, không thấy domain phụ ẩn trong từng module. Khi suy luận trái với PO khai -> ghi vào `conflicts_with_profile: true` để người audit.",
+
+  "schema_version": 1,
+  "_schema": {
+    "stories[]": {
+      "story_id": "BẮT BUỘC — khớp story_id trong shared/PRD.md. context_compile.py lọc theo field này (JSON_SHAPES), thiếu = entry VÔ HÌNH với mọi agent.",
+      "roles": "BẮT BUỘC — luôn là [\"designer\"]. Đây là cơ chế slicing của context_compile: chỉ designer nhận entry này, các agent khác không tốn context.",
+      "domains[]": {
+        "tag": "1 trong `known_domains` bên dưới. Tag lạ = Gate 5 điều 6 fail.",
+        "confidence": "0.0-1.0. Xem ngưỡng ở `_confidence_policy`.",
+        "evidence": "Câu/tên module TRÍCH THẬT từ PRD dẫn tới suy luận này — để người audit lại được, không phải hộp đen. Bịa evidence = lỗi nặng hơn sai domain.",
+        "primary": "true với đúng 1 domain của story (domain quyết định layout chính); false với domain phụ."
+      },
+      "conflicts_with_profile": "true nếu suy luận khác `domain` PO khai trong project-profile.json.",
+      "resolved_by_sync": "null | request_id của Sync Session ba<->po đã dùng để chốt domain khi confidence thấp."
+    }
+  },
+
+  "_confidence_policy": {
+    "auto_accept": ">= 0.75 — khoá luôn, không hỏi. Ngưỡng này chọn vì domain rõ ràng thường có nhiều hơn 1 bằng chứng độc lập trong PRD (tên module + động từ nghiệp vụ + field dữ liệu); dưới mức đó thường chỉ suy từ 1 từ khoá, và 1 từ khoá thì dễ trùng giữa các domain (vd 'giỏ hàng' có ở cả e-commerce và on-demand-booking).",
+    "must_ask": "< 0.75 với domain `primary` -> BẮT BUỘC mở Sync Session `ba` -> `po` (type: request, max_turns: 3) để xác nhận TRƯỚC khi ghi vào file này. Sai domain primary = designer nạp sai bộ pattern cho cả story, sai đó chỉ lộ ra ở Gate 5 hoặc muộn hơn — đắt hơn 1 câu hỏi.",
+    "drop": "< 0.5 với domain phụ (primary: false) -> BỎ, không ghi. Domain phụ mơ hồ chỉ làm designer nạp thêm context vô ích, mà ngân sách token của designer là 6000 (agents/designer/manifest.json).",
+    "_why_not_ask_for_secondary": "Domain phụ đoán sai chỉ làm designer đọc thêm 1 bộ pattern không dùng — thiệt hại là context, không phải thiết kế sai. Domain primary sai mới làm sai layout. Vì vậy chỉ primary được phép chặn pipeline bằng Sync Session."
+  },
+
+  "known_domains": [
+    "e-commerce-marketplace",
+    "on-demand-booking",
+    "social-community",
+    "fintech-payment",
+    "health-fitness",
+    "education-learning",
+    "content-media",
+    "productivity-tools"
+  ],
+  "_known_domains_note": "Tag ở đây PHẢI khớp tên thư mục trong agents/designer/skills/domain/. Domain nào chưa có thư mục skill -> xem cơ chế bootstrap `draft: true` trong agents/designer/skills/domain/SKILL.md. Thêm domain mới thì thêm CẢ 2 chỗ.",
+
+  "stories": [
+    {
+      "_example": "VÍ DỤ MẪU — xoá khi có story thật. Đây là story 'thanh toán đơn đặt phòng' minh hoạ đúng ca 1 story mang 2 domain.",
+      "story_id": "US-000",
+      "roles": ["designer"],
+      "domains": [
+        {
+          "tag": "on-demand-booking",
+          "confidence": 0.92,
+          "primary": true,
+          "evidence": "PRD US-000 'Mô tả': người dùng chọn ngày nhận/trả phòng rồi chờ chủ nhà xác nhận trong 30 phút; Edge case: 'chủ nhà không phản hồi sau 30 phút'."
+        },
+        {
+          "tag": "fintech-payment",
+          "confidence": 0.81,
+          "primary": false,
+          "evidence": "PRD US-000 'Acceptance criteria': 'thanh toán bằng thẻ đã lưu hoặc ví', 'hiển thị phí dịch vụ tách khỏi giá phòng trước khi bấm Thanh toán'."
+        }
+      ],
+      "conflicts_with_profile": false,
+      "resolved_by_sync": null
+    }
+  ]
+}

@@ -8,6 +8,8 @@
     "__generated__": "SINH TỰ ĐỘNG bởi kernel/tools/ — không ai được sửa tay, kể cả người. Sửa tay = lệch với nguồn derived. Hiện tại: today.md (bởi digest.py)"
   },
   "_race_rule": "Nếu owner là unit có scope='story' VÀ đường dẫn là 1 FILE đơn VÀ role của unit đó có concurrency > 1 -> 2 instance của cùng unit (2 story khác nhau) sẽ ghi cùng file = race. Khi đó phải chọn: (a) đổi thành THƯ MỤC per-story (đường dẫn kết thúc bằng '/'), hoặc (b) đặt concurrency = 1 cho role đó. validate.py mã F3 cưỡng chế điều này.",
+  "_design_split_why": "shared/design/ TRƯỚC ĐÂY khai là 1 thư mục owner='designer'. Không dùng lại được sau khi agent `designer` tách 2 phase: `design-system` ghi tokens.json + theme-preview.html (1 lần/project), `designer-screen` ghi layout từng story — 2 unit khác nhau, cùng ready sau Gate 1 ở 2 thời điểm khác nhau. Giữ nguyên entry thư mục thì 2 unit đều có quyền ghi cùng vùng (validate.py mã F5 chặn). Cách sửa theo đúng tiền lệ shared/capabilities/ (native.json vs ads.json): KHÔNG khai thư mục cha, khai từng đường dẫn theo writer. Layout story vì thế chuyển vào thư mục con shared/design/screens/<story_id>.json — thư mục (không phải file đơn) nên designer.concurrency=2 vẫn an toàn (F3).",
+  "_theme_choice_why": "shared/design/theme-choice.json owner='__human__' vì đây là QUYẾT ĐỊNH THẨM MỸ của người, không phải sản phẩm của agent. Người ghi qua `python kernel/tools/resume.py <node_id> --decision <theme_id>` (tool kernel ghi thay người, cùng cách resume.py ghi wbs.json owner='__kernel__'). Vì sao KHÔNG để agent `design-system` tự ghi lựa chọn vào tokens.json: nếu vậy thì không có mốc nào kiểm được là người đã thật sự chọn, gate7 lại thành 'agent tự nhận xong là xong' — đúng lỗi mà gate5 sinh ra để chặn. Agent ĐỌC file này rồi mới khoá tokens.json.",
   "schema_version": 1,
   "owners": {
     "shared/PRD.md": "ba",
@@ -15,7 +17,11 @@
     "shared/db-schema.md": "cto",
     "shared/system-spec.md": "cto",
     "shared/contracts/api-contracts.json": "cto",
-    "shared/design/": "designer",
+    "shared/contracts/domain-map.json": "ba",
+    "shared/design/tokens.json": "design-system",
+    "shared/design/theme-preview.html": "design-system",
+    "shared/design/theme-choice.json": "__human__",
+    "shared/design/screens/": "designer-screen",
     "shared/capabilities/native.json": "mobile-shell",
     "shared/capabilities/ads.json": "ads-setup",
     "shared/lessons_learned.md": "__kernel__",

@@ -23,8 +23,8 @@
 
 | `scope` của unit (xem `dag.json`) | TRACK_ID | Ví dụ |
 |---|---|---|
-| `story` | `<STORY_ID>` bỏ dấu gạch | `US014-designer`, `US014-mobile-screen`, `US014-qa` |
-| `project` | `PROJ` | `PROJ-mobile-shell`, `PROJ-devops-infra`, `PROJ-ads-setup` |
+| `story` | `<STORY_ID>` bỏ dấu gạch | `US014-designer-screen`, `US014-mobile-screen`, `US014-qa` |
+| `project` | `PROJ` | `PROJ-design-system`, `PROJ-mobile-shell`, `PROJ-devops-infra`, `PROJ-ads-setup` |
 | `release` | `REL` | `REL-devops-release` |
 
 `unit` = `role` nếu agent 1 phase, `role-phase` nếu nhiều phase. `node_id` phải **duy nhất toàn file**.
@@ -63,7 +63,7 @@
      depends_on = [dịch valid sang node_id thật]
 
    Dịch node_id theo scope của DEPENDENCY (không phải của unit hiện tại):
-     dep scope=story   -> <STORY_ID cùng story>-<dep>     vd US014-designer
+     dep scope=story   -> <STORY_ID cùng story>-<dep>     vd US014-designer-screen
      dep scope=project -> PROJ-<dep>                       vd PROJ-mobile-shell
 
    Ví dụ: qa của story US-014, story này Monetization:false

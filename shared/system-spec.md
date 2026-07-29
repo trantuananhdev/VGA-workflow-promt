@@ -6,6 +6,22 @@
 
 ---
 
+<!-- tier:2 role:cto,designer,mobile,devops story:PROJ -->
+### PROJ: Ràng buộc cấp project ảnh hưởng tới UI
+
+> Do CTO ghi 1 lần/project, trước Gate 1. Phase `design-system` dùng mục này để biết token phải
+> chịu ràng buộc gì; `mobile-shell` dùng để biết platform target. (Ví dụ mẫu — xoá khi có project thật.)
+
+**Platform mục tiêu + min OS:** <vd iOS 15+, Android 8+ — quyết định dùng quy ước iOS HIG hay Material ở chỗ 2 bên khác nhau>
+
+**Mức accessibility bắt buộc đạt:** <mặc định `a11y_contract` trong `shared/design/tokens.json`; nêu nếu cao hơn>
+
+**Ràng buộc kỹ thuật ảnh hưởng style:** <vd bắt buộc hỗ trợ dark mode, chỉ dùng font hệ thống, hỗ trợ RTL, hỗ trợ cỡ chữ hệ thống tới 200%>
+
+**Ràng buộc chặn chụp màn hình / che nội dung nhạy cảm (nếu có):** <nêu rõ — hành vi iOS và Android KHÁC nhau>
+
+---
+
 <!-- tier:2 role:cto,designer,dev-be,mobile,devops,qa story:US-000 -->
 ### US-000: (ví dụ mẫu — xoá khi có story thật)
 

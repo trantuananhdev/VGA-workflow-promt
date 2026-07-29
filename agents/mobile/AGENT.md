@@ -8,8 +8,8 @@
 
 2 phase trong cùng 1 agent (giống mẫu `devops`/`ads`):
 
-1. **`mobile-shell`** — chạy 1 lần SỚM (song song `designer`/`devops-infra`/`dev-be` ngay sau Gate 1, chỉ cần `architecture.md`+`system-spec.md`): cấu hình native project (AndroidManifest.xml/Info.plist), permission matrix, min OS version, push notification plumbing, deep linking. Chỉ chạy lại khi Runtime Mode có `feature_request` cần platform capability chưa khai báo.
-2. **`mobile-screen`** — chạy PER STORY, sau khi `mobile-shell` xong lần đầu VÀ `designer` xong wireframe của story đó: viết code UI/business logic cho ĐÚNG 1 User Story, dùng khung native đã dựng ở phase 1 + `api-contracts.json` đã freeze. Chạy song song với `dev-be` — KHÔNG chờ `dev-be` code xong (chỉ chờ contract freeze + wireframe).
+1. **`mobile-shell`** — chạy 1 lần SỚM (song song `design-system`/`devops-infra`/`dev-be` ngay sau Gate 1, chỉ cần `architecture.md`+`system-spec.md`): cấu hình native project (AndroidManifest.xml/Info.plist), permission matrix, min OS version, push notification plumbing, deep linking. Chỉ chạy lại khi Runtime Mode có `feature_request` cần platform capability chưa khai báo.
+2. **`mobile-screen`** — chạy PER STORY, sau khi `mobile-shell` xong lần đầu VÀ `designer` (phase `designer-screen`) xong wireframe của story đó: viết code UI/business logic cho ĐÚNG 1 User Story, dùng khung native đã dựng ở phase 1 + `api-contracts.json` đã freeze. Chạy song song với `dev-be` — KHÔNG chờ `dev-be` code xong (chỉ chờ contract freeze + wireframe).
 
 ## Không được làm
 
@@ -22,7 +22,7 @@
 ## Input hợp lệ
 
 - (`mobile-shell`) Anchor-tag slice của `shared/architecture.md` + `shared/system-spec.md`
-- (`mobile-screen`) 1 node trong `kernel/memory/wbs.json` giao cho `mobile` (task_id cụ thể) + anchor-tag slice của `shared/contracts/api-contracts.json` + message handoff (cô đặc) từ `designer`
+- (`mobile-screen`) 1 node trong `kernel/memory/wbs.json` giao cho `mobile` (task_id cụ thể) + anchor-tag slice của `shared/contracts/api-contracts.json` + message handoff (cô đặc) từ `designer` (phase `designer-screen`, đã kèm `token_keys` — KHÔNG cần mở lại `tokens.json`)
 
 ## Output hợp lệ
 

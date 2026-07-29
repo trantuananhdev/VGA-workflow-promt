@@ -15,15 +15,15 @@
 
 ---
 
-## 1. Handoff (mặc định, 1 chiều) — `designer` báo xong cho `mobile`
+## 1. Handoff (mặc định, 1 chiều) — `designer` (phase `designer-screen`) báo xong cho `mobile`
 
-`kernel/mailbox/msg-US014-designer-1.md`:
+`kernel/mailbox/msg-US014-designer-screen-1.md`:
 
 ```markdown
 ---
-message_id: msg-US014-designer-1
+message_id: msg-US014-designer-screen-1
 type: handoff
-node_id: US014-designer
+node_id: US014-designer-screen
 task_id: US-014
 from: designer
 to: mobile
@@ -42,16 +42,16 @@ lỗi OTP sai, lỗi OTP hết hạn). Không có gì mơ hồ cần hỏi lại
 - có slot quảng cáo: không
 
 ## Con trỏ (mở nếu cần)
-- `shared/design/US-014.json` (layout JSON đầy đủ)
+- `shared/design/screens/US-014.json` (layout JSON đầy đủ)
 ```
 
 **Orchestrator xử lý theo đúng thứ tự — không bỏ bước nào:**
 ```
-1. Gate 0: frontmatter hợp lệ + `to` có trong dag.json.units["designer"].feeds?
-2. wbs.json: node US014-designer -> status: done, finished_at: <now>
+1. Gate 0: frontmatter hợp lệ + `to` có trong dag.json.units["designer-screen"].feeds?
+2. wbs.json: node US014-designer-screen -> status: done, finished_at: <now>
 3. Thêm message_id vào node.message_refs           (dấu vết: message nào đã chạm node này)
 4. RECOMPUTE_READY(): US014-mobile-screen có depends_on
-   [US014-designer, PROJ-mobile-shell] — nếu CẢ 2 done -> chuyển ready
+   [US014-designer-screen, PROJ-mobile-shell] — nếu CẢ 2 done -> chuyển ready
 5. Append 1 dòng vào event-log.jsonl
 6. Set processed_at: <now>                          <-- thiếu bước này = loop vô hạn
 ```

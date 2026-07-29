@@ -13,7 +13,7 @@
 3. `kernel/contracts/dag.json` — **bản máy đọc** của DAG (Gate 0/Gate 2 lookup vào đây). `kernel/rules/routing-table.md` là bản giải thích cho người — 2 file phải khớp.
 4. `kernel/contracts/` — **2 contract đối xứng**: `message.schema.json` + `message-examples.md` (agent→kernel; 3 field then chốt `node_id`/`processed_at`/`message_id`) và `boot-context.schema.json` (kernel→agent). Cùng với `data-ownership.json` (single-writer) và `dag.json`.
 5. `kernel/rules/` — `scheduling-policy.md` (ưu tiên từng pha, capacity), `handoff-contracts.md` (mỗi cạnh truyền field gì), `routing-table.md`, `ssot-precedence.md`.
-6. `kernel/gates/` — **7 Gate** (0-6), mỗi file nêu chính xác điều kiện pass + hành động khi fail. Số gate đánh theo thứ tự tạo ra, không theo DAG: thứ tự chạy thực tế là `gate0` (mọi dispatch) → `gate1` (cto) → `gate2` (sau `generate_wbs`) → `gate5` (designer) → `gate3` (dev-be/mobile/ads) → `gate4` (qa) → `gate6` (release).
+6. `kernel/gates/` — **8 Gate** (0-7), mỗi file nêu chính xác điều kiện pass + hành động khi fail. Số gate đánh theo thứ tự tạo ra, không theo DAG: thứ tự chạy thực tế là `gate0` (mọi dispatch) → `gate1` (cto) → `gate2` (sau `generate_wbs`) → **`gate7`** (`design-system` — gate DUY NHẤT chờ người chọn phương án theme) → `gate5` (`designer-screen`) → `gate3` (dev-be/mobile/ads) → `gate4` (qa) → `gate6` (release).
 7. `kernel/memory/project-profile.json` — capability-agent nào active cho project HIỆN TẠI. Do `po` ghi lúc intake.
 8. `agents/_template/` — khuôn mẫu tạo agent mới. **8 agent core**: `po`, `ba`, `cto`, `designer`, `dev-be`, `mobile`, `devops`, `qa`. **1 capability-agent** (`core:false`): `ads`.
 9. `shared/` — SSOT nghiệp vụ (`PRD.md`, `architecture.md`, `db-schema.md`, `system-spec.md`, `contracts/api-contracts.json`, `capabilities/native.json`, `capabilities/ads.json`) — **anchor tag `<!-- tier:2 role:... story:... -->` là nơi DUY NHẤT khai quyền đọc**: `context_compile.py` quét theo tag, không giữ danh sách riêng. Thêm file mới không cần sửa tool. `Monetization: true|false` bắt buộc trên mọi User Story.
@@ -108,7 +108,8 @@ Không tách thành agent riêng vì đó là cùng 1 chuyên môn/1 người th
 
 | Agent | Phase sớm (song song, chỉ cần Gate 1) | Phase muộn |
 |---|---|---|
-| `mobile` | `mobile-shell` — native config, permission, push, deep link (1 lần/project) | `mobile-screen` — code UI/logic per story, cần `designer` + `mobile-shell` xong |
+| `designer` | `design-system` — chốt `shared/design/tokens.json` + `theme-preview.html` (1 lần/project). **Gate 7 dừng chờ NGƯỜI chọn theme** | `designer-screen` — layout JSON per story, mọi style trỏ token; cần `design-system` xong |
+| `mobile` | `mobile-shell` — native config, permission, push, deep link (1 lần/project) | `mobile-screen` — code UI/logic per story, cần `designer-screen` + `mobile-shell` xong |
 | `ads` | `ads-setup` — SDK + consent management (1 lần/project) | `ads-placement` — chèn quảng cáo, chỉ story `Monetization: true`, cần `mobile-screen` xong |
 | `devops` | `devops-infra` — CI/CD, môi trường | `devops-release` — build, ASO, monitoring; cần `qa` pass Gate 4 |
 
@@ -123,7 +124,8 @@ Mobile app không cần quảng cáo? Để `active_capability_agents: []` — `
 ## Quy tắc tổ chức skill — tránh trùng lặp khi thêm skill mới
 
 - **≥ 2 role dùng giống hệt nhau** (vd `git_workflow` cho `dev-be`/`mobile`/`ads`, `context_compile`/`generate_wbs` cho Orchestrator) → đặt ở `skills/` cấp root, các `AGENT.md` chỉ tham chiếu tên, không copy nội dung.
-- **Chỉ 1 role dùng, đặc thù nghiệp vụ của role đó** (vd `skill_generate_wireframe` của `designer`) → đặt trong `agents/<role>/skills/`.
+- **Chỉ 1 role dùng, đặc thù nghiệp vụ của role đó** (vd `generate_wireframe` của `designer`, `classify_domain` của `ba`) → đặt trong `agents/<role>/skills/`.
+- **Thư viện tri thức theo domain** (`agents/designer/skills/domain/<tag>/`) → nạp CHỌN LỌC theo `shared/contracts/domain-map.json`, không nạp cả thư viện (ngân sách context là per-agent).
 
 ## Trạng thái: hoàn chỉnh về CẤU TRÚC — còn 5 chỗ chờ quyết định thật
 

@@ -3,6 +3,7 @@
   "_unit_note": "unit = đơn vị nhỏ nhất có thể là 1 node trong wbs.json. Agent 1 phase -> unit = role. Agent nhiều phase -> unit = role-phase. scope quyết định số node sinh ra: story = 1/story, project = 1/project, release = 1/release.",
   "_gate1_note": "'gate1' là pseudo-unit đại diện mốc BA+CTO signoff. Node có depends_on:['gate1'] thì generate_wbs khởi tạo status:ready ngay (vì skill chỉ chạy SAU khi Gate 1 pass) và KHÔNG giữ 'gate1' trong depends_on thật.",
   "_two_graphs": "CÓ 2 ĐỒ THỊ RIÊNG BIỆT, không trộn vào 1 field: (a) 'feeds'/'depends_on' = Build Mode DAG, BẮT BUỘC đối xứng — mọi u trong X.feeds thì X phải nằm trong u.depends_on (hoặc u.conditional_depends_on). (b) 'runtime_feeds' = đường tắt Runtime Mode (feature_request size S, bug_report), KHÔNG đối xứng vì nó bỏ qua nhiều bước của Build DAG. Trộn 2 cái này vào 1 field làm validator không thể kiểm được đồ thị nào cả.",
+  "_designer_two_phases_note": "agent `designer` có 2 phase theo đúng mẫu mobile-shell/mobile-screen: `design-system` (scope project, chạy 1 lần, chốt design token cho cả app) và `designer-screen` (scope story, vẽ layout từng story). ĐÂY LÀ NGOẠI LỆ CÓ CHỦ ĐÍCH so với câu 'designer chỉ phụ thuộc Gate 1' trước đây: `designer-screen` PHẢI chờ `design-system` done (tức gate7 pass = người đã chọn theme), vì nếu không thì nó lại tự bịa màu/spacing riêng cho từng story — đúng vấn đề mà tầng token sinh ra để giải quyết. Trade-off: story đầu tiên chờ thêm 1 vòng người-chọn-theme, chỉ 1 lần/project.",
   "schema_version": 1,
   "units": {
     "po": {
@@ -45,12 +46,26 @@
       "runtime_feeds": [],
       "gate": "gate1"
     },
-    "designer": {
+    "design-system": {
       "role": "designer",
-      "phase": null,
-      "scope": "story",
+      "phase": "design-system",
+      "scope": "project",
       "depends_on": [
         "gate1"
+      ],
+      "feeds": [
+        "designer-screen"
+      ],
+      "runtime_feeds": [],
+      "gate": "gate7"
+    },
+    "designer-screen": {
+      "role": "designer",
+      "phase": "designer-screen",
+      "scope": "story",
+      "depends_on": [
+        "gate1",
+        "design-system"
       ],
       "feeds": [
         "mobile-screen"
@@ -89,7 +104,7 @@
       "phase": "mobile-screen",
       "scope": "story",
       "depends_on": [
-        "designer",
+        "designer-screen",
         "mobile-shell"
       ],
       "feeds": [
@@ -172,8 +187,11 @@
   },
   "_sync_note": "Sync Session (type:request/response) là trục giao tiếp RIÊNG, không đi theo feeds. Gate 0 kiểm request/response bằng map này. Quan hệ BẮT BUỘC đối xứng: nếu A được hỏi B thì B phải được trả lời A.",
   "sync_allowed": {
-    "po": [],
+    "po": [
+      "ba"
+    ],
     "ba": [
+      "po",
       "cto",
       "designer",
       "qa",
@@ -210,6 +228,7 @@
       "ba"
     ]
   },
+  "_sync_po_note": "Cạnh `ba <-> po` mới thêm: skill_classify_domain (agents/ba/skills/) khi suy luận domain của 1 story ra confidence thấp thì `ba` PHẢI hỏi lại `po` thay vì tự khoá domain sai vào shared/contracts/domain-map.json — domain sai làm designer nạp sai domain skill, và sai đó chỉ lộ ra ở Gate 5 hoặc muộn hơn.",
   "_core_note": "core KHÔNG khai ở đây. core-ness của 1 unit = agents/<unit.role>/manifest.json .core — vì project-profile.active_capability_agents liệt kê AGENT (bật/tắt cả agent, không bật/tắt lẻ 1 phase).",
-  "_gate_numbering_note": "So gate danh theo THU TU TAO RA, khong theo thu tu trong DAG. Thu tu chay thuc te: gate0 (moi dispatch) -> gate1 (cto) -> gate2 (sau generate_wbs) -> gate5 (designer) -> gate3 (dev-be/mobile/ads) -> gate4 (qa) -> gate6 (devops-release)."
+  "_gate_numbering_note": "So gate danh theo THU TU TAO RA, khong theo thu tu trong DAG. Thu tu chay thuc te: gate0 (moi dispatch) -> gate1 (cto) -> gate2 (sau generate_wbs) -> gate7 (design-system, can nguoi chon theme) -> gate5 (designer-screen) -> gate3 (dev-be/mobile/ads) -> gate4 (qa) -> gate6 (devops-release)."
 }

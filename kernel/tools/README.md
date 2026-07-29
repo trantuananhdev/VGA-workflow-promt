@@ -25,7 +25,7 @@ Exit code: `0` = không có ERROR · `1` = có ERROR (không được chạy Eve
 | `C*` | `kernel/memory/wbs.json` | `node_id` trùng, dependency treo, **sai quy tắc giao tập**, `ready` khi dep chưa done, **`blocked` khi mọi dep đã done** (= quên `RECOMPUTE_READY()`), vượt `concurrency`, `po`/`ba`/`cto` lọt vào track `build`, track toàn `blocked` |
 | `D*` | `kernel/mailbox/*.md` | Frontmatter sai schema, `node_id` vô địa chỉ, `from` mạo danh node khác, `to` không hợp lệ theo `dag.json`, `turn > max_turns`, **`processed_at: null` khi node đã `done`** (`D12` — loop vô hạn), body vượt ngưỡng (`D14`), `artifact_refs` trỏ file không có (`D15`), `message_id` trùng hoặc sai quy ước `msg-<node_id>-<n>` (`D16`/`D17`) |
 | `F*` | single-writer (`data-ownership.json`) | File có >1 writer, file đơn bị unit `scope:story` `concurrency>1` ghi (`F3`), agent memory không đặt tên theo node (`F6`), file `shared/` chưa khai chủ sở hữu |
-| `E*` | tham chiếu chéo | Thư mục skill rỗng, skill không được `AGENT.md` cho phép gọi, anchor-tag trỏ role không tồn tại, capability-agent kích hoạt sai, tham chiếu tới thứ đã bị gỡ |
+| `E*` | tham chiếu chéo | Thư mục skill rỗng, skill không được `AGENT.md` cho phép gọi, anchor-tag trỏ role không tồn tại, capability-agent kích hoạt sai, tham chiếu tới thứ đã bị gỡ, **thiếu tiền đề Gate 1 cho nhánh Design** (`E9`: khối `story:PROJ` role `designer` trong `PRD.md`; `E10`/`E11`: `domain-map.json` phủ đủ story) |
 | `G*` | `kernel/boot/*.md` (chiều kernel→agent) | `bundle_tokens` vượt `max_context_tokens` (`G6` = Gate 0 điều 8), retry thiếu `last_error` (`G9`), `allowed_*` lệch `dag.json` (`G12`/`G13` — agent bị chặn oan hoặc được quá quyền), `tier2_sources` rỗng với node có story (`G11` = lỗi tag), body thiếu/đổi số mục (`G15`) |
 | `S*` | `--selftest` | Mô phỏng sinh track `intake`/`build`/`build+ads`/`runtime` rồi kiểm: có unit nào `ready` không, `depends_on` có đúng kỳ vọng không |
 
@@ -54,6 +54,7 @@ Không phải "viết ra rồi tin". Đã test bằng cách **tiêm lỗi cố �
 | Message mạo danh, `to` sai, sót `processed_at` | `D9`, `D10`, `D12` |
 | Body quá dài, `artifact_refs` treo, `message_id` trùng/sai quy ước | `D14`, `D15`, `D16`, `D17` |
 | Race: file đơn bị `concurrency>1` ghi, agent memory dùng file chung | `F3`, `F6` |
+| Story thật thiếu entry `domain-map.json`, thiếu khối `story:PROJ` cho `designer` | `E10`, `E9` |
 
 Mỗi lần thêm nhóm kiểm tra mới đều test lại theo cách này — validator không bao giờ báo lỗi thì vô dụng.
 
@@ -63,7 +64,10 @@ Mỗi lần thêm nhóm kiểm tra mới đều test lại theo cách này — v
 python kernel/tools/resume.py --list                            # node nào đang chờ người
 python kernel/tools/resume.py <node_id> --note "<đã sửa gì>"    # waiting_human -> ready|blocked
 python kernel/tools/resume.py <node_id> --abandon --note "..."  # waiting_human -> failed
+python kernel/tools/resume.py <node_id> --decision <id> --note "..."  # awaiting_human_decision -> ready
 ```
+
+`--decision` dùng riêng cho status `awaiting_human_decision` (hiện chỉ Gate 7 — chọn theme): ghi thêm `shared/design/theme-choice.json` (owner `__human__`), và **không** tăng `gate.consecutive_fail` vì đây không phải lỗi. Xem `kernel/gates/gate7-design-system-lock.md`.
 
 Node `waiting_human` **không tự thoát ra được**. Tool này làm nguyên tử 4 việc: đổi `status`, reset `gate.consecutive_fail`, append `gate.resume_history`, append `event-log`.
 
@@ -91,8 +95,8 @@ File này phải **rỗng** trong repo template — ví dụ để ở đây, kh
 Mỗi dòng 1 span. Bắt buộc: `ts`, `event`, `node_id`. `event` ∈ `dispatch` | `gate_check` | `handoff` | `sync_session` | `escalation` | `resume` | `abandon` | `gate0_reject`.
 
 ```jsonl
-{"ts":"2026-07-28T10:02:00Z","event":"dispatch","node_id":"US014-designer","task_id":"US-014","role":"designer","phase":null}
-{"ts":"2026-07-28T10:14:30Z","event":"handoff","node_id":"US014-designer","task_id":"US-014","from":"designer","to":"mobile","message_id":"msg-US014-designer-1","gate":"none","result":"pass","unblocked":["US014-mobile-screen"]}
+{"ts":"2026-07-28T10:02:00Z","event":"dispatch","node_id":"US014-designer-screen","task_id":"US-014","role":"designer","phase":"designer-screen"}
+{"ts":"2026-07-28T10:14:30Z","event":"handoff","node_id":"US014-designer-screen","task_id":"US-014","from":"designer","to":"mobile","message_id":"msg-US014-designer-screen-1","gate":"gate5","result":"pass","unblocked":["US014-mobile-screen"]}
 {"ts":"2026-07-28T11:40:12Z","event":"gate_check","node_id":"US014-mobile-screen","task_id":"US-014","gate":"gate3","result":"fail","consecutive_fail":1,"reason":"flutter analyze: 3 errors in otp_screen.dart"}
 {"ts":"2026-07-28T12:05:00Z","event":"sync_session","node_id":"US014-mobile-screen","task_id":"US-014","request_id":"sync-US014-01","participants":["mobile","cto"],"turns":2,"outcome":"resolved"}
 {"ts":"2026-07-28T13:20:00Z","event":"escalation","node_id":"US014-mobile-screen","task_id":"US-014","reason":"consecutive_fail=3 >= after_fail","notify":"dev-alerts"}
