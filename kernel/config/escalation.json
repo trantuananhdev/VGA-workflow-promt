@@ -1,0 +1,13 @@
+{
+  "_comment": "SSOT duy nhất cho kênh escalate — manifest.json của từng agent chỉ tham chiếu KEY ở đây, không hard-code chuỗi kênh thật. Sửa kênh thật (Slack/email) chỉ cần sửa 1 chỗ này.",
+  "_todo": "Điền target thật khi triển khai (tên kênh Slack thật, địa chỉ email thật, v.v.)",
+  "channels": {
+    "product": { "type": "slack", "target": "#TODO-product-channel" },
+    "architecture": { "type": "slack", "target": "#TODO-architecture-channel" },
+    "design": { "type": "slack", "target": "#TODO-design-channel" },
+    "dev-alerts": { "type": "slack", "target": "#TODO-dev-alerts-channel" },
+    "qa-alerts": { "type": "slack", "target": "#TODO-qa-alerts-channel" },
+    "devops-alerts": { "type": "slack", "target": "#TODO-devops-alerts-channel" },
+    "ads-alerts": { "type": "slack", "target": "#TODO-ads-alerts-channel" }
+  }
+}

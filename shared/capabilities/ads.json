@@ -1,0 +1,22 @@
+{
+  "_comment": "Cấu hình quảng cáo. WRITER DUY NHẤT: unit `ads-setup` (xem kernel/contracts/data-ownership.json). Tách khỏi native.json vì 2 unit khác nhau ghi 2 phần, chạy song song sau Gate 1 -> nếu cùng file thì race, mất dữ liệu.",
+  "_readers": "ads-placement, mobile-screen, qa, devops — CHỈ ĐỌC.",
+  "_only_if": "File này chỉ có nội dung khi agent `ads` được kích hoạt trong kernel/memory/project-profile.json (active_capability_agents). Project không cần quảng cáo thì để nguyên trạng rỗng.",
+
+  "configured": false,
+  "network": null,
+  "mediation": null,
+  "_network_note": "Ghi rõ LÝ DO chọn network/mediation — quyết định 1 lần đầu dự án, người sau cần biết vì sao",
+  "reason": null,
+
+  "test_ad_unit_ids": [],
+  "production_ad_unit_ids": [],
+  "_ad_unit_note": "KHÔNG dùng production ad unit ID cho tới khi qua Gate 4 (xem agents/ads/skills/integrate_ad_sdk/SKILL.md)",
+
+  "consent_management": {
+    "configured": false,
+    "cmp": null,
+    "tested_cases": [],
+    "_tested_cases_note": "PHẢI đủ 3 case mới được coi là xong: user đồng ý / user từ chối / user ngoài vùng GDPR. Chưa xong consent thì TUYỆT ĐỐI không request quảng cáo (điều kiện cứng của Gate 3 phase ads-setup)."
+  }
+}

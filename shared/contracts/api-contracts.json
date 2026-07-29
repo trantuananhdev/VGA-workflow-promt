@@ -1,0 +1,27 @@
+{
+  "_comment": "SSOT cho mọi API contract. WRITER DUY NHẤT: unit `cto` (xem kernel/contracts/data-ownership.json). Freeze ngay sau Gate 1 để dev-be và mobile-screen code song song (contract-first).",
+
+  "_story_id_required": "MỖI endpoint PHẢI có story_id. Đây không phải metadata trang trí: kernel/tools/context_compile.py lọc theo field này để trích Tier 2. Endpoint thiếu story_id sẽ KHÔNG bao giờ được đưa vào boot context của agent nào — nó vô hình với toàn hệ thống. File markdown dùng anchor-tag `<!-- tier:2 role:... story:... -->` cho cùng mục đích; JSON không có comment nên dùng field.",
+
+  "_roles_note": "roles = danh sách agent được đọc endpoint này (tương ứng phần role: của anchor-tag trong markdown). Mặc định nếu thiếu: [cto, dev-be, mobile, qa].",
+
+  "schema_version": 1,
+  "endpoints": [],
+
+  "_endpoint_example": {
+    "id": "otp-verify",
+    "story_id": "US-014",
+    "roles": ["cto", "dev-be", "mobile", "qa"],
+    "method": "POST",
+    "path": "/otp/verify",
+    "request": { "phone_number": "string", "otp_code": "string" },
+    "responses": {
+      "200": { "session_token": "string", "expires_in": "int" },
+      "400": "OTP sai định dạng",
+      "410": "OTP đã hết hạn — dùng 410 Gone, KHÔNG dùng 400 (quyết định trong Sync Session sync-US014-01)",
+      "429": "quá 5 lần sai → khoá 15 phút"
+    },
+    "frozen": true,
+    "_frozen_note": "frozen: true nghĩa là dev-be + mobile-screen đang code dựa vào nó. Đổi endpoint đã freeze PHẢI thông báo cả 2 (xem agents/cto/AGENT.md) — không sửa im lặng."
+  }
+}

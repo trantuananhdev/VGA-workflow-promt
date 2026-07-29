@@ -1,0 +1,6 @@
+{
+  "_comment": "SSOT duy nhất cho 'project này cần capability-agent tuỳ chọn nào'. Do PO ghi (qua agents/po/commands/new-idea.md) ngay lúc intake, CTO xác nhận lại trong Gate 1. generate_wbs BẮT BUỘC đọc file này trước khi sinh wbs.json — không tự đoán project cần gì. Repo này THUẦN Mobile nên không còn field project_types (web-application dùng repo riêng).",
+  "project_id": null,
+  "active_capability_agents": [],
+  "_active_capability_agents_note": "Chỉ liệt kê agent có core:false trong manifest.json (hiện tại: \"ads\") mà project NÀY thực sự cần. Mobile app hoàn toàn có thể KHÔNG cần ads — để mảng rỗng thì agent ads không bao giờ được spawn."
+}

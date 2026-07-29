@@ -1,0 +1,37 @@
+{
+  "_comment": "SINGLE-WRITER INVARIANT — mỗi đường dẫn dữ liệu có ĐÚNG 1 unit được ghi. Đây là cơ chế chống race condition khi nhiều agent chạy song song (concurrency > 1): không có 2 writer thì không thể có tranh chấp, không cần lock. validate.py (nhóm F*) cưỡng chế bảng này.",
+  "_why": "Trước đây shared/mobile-capabilities.json bị 2 unit khác nhau ghi (mobile-shell viết permission, ads-setup viết phần ads) — và cả 2 đều status:ready ngay sau Gate 1 nên chạy song song theo đúng thiết kế DAG. Ở mức filesystem, 2 process ghi cùng 1 file = bên ghi sau đè mất dữ liệu bên ghi trước. Validator không bắt được vì nó chỉ thấy kết quả cuối cùng. Cách sửa duy nhất đúng: tách file theo writer.",
+  "_owner_kinds": {
+    "<unit>": "tên unit trong kernel/contracts/dag.json (vd 'cto', 'mobile-shell') — dùng unit chứ không dùng role, để phân biệt mobile-shell vs mobile-screen",
+    "__kernel__": "chỉ Orchestrator hoặc kernel tool được ghi; agent tuyệt đối không",
+    "__human__": "người điền tay, hệ thống chỉ đọc",
+    "__generated__": "SINH TỰ ĐỘNG bởi kernel/tools/ — không ai được sửa tay, kể cả người. Sửa tay = lệch với nguồn derived. Hiện tại: today.md (bởi digest.py)"
+  },
+  "_race_rule": "Nếu owner là unit có scope='story' VÀ đường dẫn là 1 FILE đơn VÀ role của unit đó có concurrency > 1 -> 2 instance của cùng unit (2 story khác nhau) sẽ ghi cùng file = race. Khi đó phải chọn: (a) đổi thành THƯ MỤC per-story (đường dẫn kết thúc bằng '/'), hoặc (b) đặt concurrency = 1 cho role đó. validate.py mã F3 cưỡng chế điều này.",
+  "schema_version": 1,
+  "owners": {
+    "shared/PRD.md": "ba",
+    "shared/architecture.md": "cto",
+    "shared/db-schema.md": "cto",
+    "shared/system-spec.md": "cto",
+    "shared/contracts/api-contracts.json": "cto",
+    "shared/design/": "designer",
+    "shared/capabilities/native.json": "mobile-shell",
+    "shared/capabilities/ads.json": "ads-setup",
+    "shared/lessons_learned.md": "__kernel__",
+    "kernel/memory/wbs.json": "__kernel__",
+    "kernel/memory/today.md": "__generated__",
+    "kernel/memory/event-log.jsonl": "__kernel__",
+    "kernel/boot/": "__generated__",
+    "kernel/memory/project-profile.json": "po",
+    "kernel/config/escalation.json": "__human__",
+    "kernel/contracts/dag.json": "__human__",
+    "kernel/contracts/data-ownership.json": "__human__"
+  },
+  "_mailbox_note": "kernel/mailbox/ KHÔNG nằm trong bảng này vì nó là hàng đợi 1-file-1-message: mỗi agent tạo file mới với message_id riêng, không bao giờ 2 agent ghi cùng 1 file. Đây chính là lý do thiết kế mailbox theo file-per-message thay vì 1 file hàng đợi chung. Ngoại lệ duy nhất: field processed_at do Orchestrator set (agent đã ghi xong và không quay lại sửa).",
+  "_agent_memory_note": "agents/<role>/memory/ cũng KHÔNG nằm trong bảng này, vì nó dùng cùng thủ pháp: MỘT FILE MỖI NODE (`<node_id>.md`). Nhiều instance của cùng 1 agent (concurrency > 1) mỗi instance xử lý 1 node khác nhau nên ghi file khác nhau — không thể tranh chấp. TRƯỚC ĐÂY dùng chung 1 file `today.md` cho cả agent, đó là race thật với mobile (concurrency 3), dev-be (3), designer/ads/qa (2). validate.py mã F6 cưỡng chế quy ước đặt tên này.",
+  "_agent_private_files": {
+    "agents/po/memory/epics.json": "po — file đơn, nên po.concurrency PHẢI là 1 (đã ghi lý do trong agents/po/manifest.json)"
+  },
+  "_boot_note": "kernel/boot/<node_id>.md la boot context sinh boi kernel/tools/context_compile.py — mot file moi node nen khong bao gio 2 writer. Dung de INSPECT: muon biet agent that su nhan gi thi doc file nay, khong phai doan."
+}

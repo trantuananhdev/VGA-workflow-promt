@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-manifest.schema.json",
+  "title": "Agent Resource Manifest",
+  "description": "Mỗi agents/<role>/manifest.json phải tuân schema này. CHỈ chứa thuộc tính TÀI NGUYÊN của agent — quan hệ phụ thuộc và trigger KHÔNG khai ở đây, kernel/contracts/dag.json là authority duy nhất. `additionalProperties: false` để chặn việc field trùng lặp (depends_on/triggers) bò trở lại.",
+  "type": "object",
+  "additionalProperties": false,
+  "patternProperties": { "^_": { "type": "string" } },
+  "_patternProperties_note": "Key bat dau bang '_' la ghi chu cho nguoi doc, luon duoc phep. Moi key KHAC phai nam trong properties — de chan field trung lap (depends_on/triggers) bo tro lai.",
+  "required": ["agent_id", "core", "model_tier", "max_context_tokens", "concurrency", "escalation"],
+  "properties": {
+    "agent_id": {
+      "type": "string",
+      "description": "Phải khớp tên thư mục agents/<agent_id>/"
+    },
+    "core": {
+      "type": "boolean",
+      "description": "true = backbone, luôn active (po/ba/cto/designer/dev-be/mobile/devops/qa). false = capability-agent tuỳ chọn (vd ads) — chỉ active khi kernel/memory/project-profile.json khai trong active_capability_agents. Đây là NƠI DUY NHẤT khai core (dag.json không khai) vì bật/tắt là bật/tắt cả agent, không lẻ từng phase."
+    },
+    "model_tier": {
+      "type": "string",
+      "enum": ["haiku", "sonnet", "opus"],
+      "description": "Chọn theo độ phức tạp việc của role này — không phải lúc nào cũng cần tier cao nhất"
+    },
+    "max_context_tokens": {
+      "type": "integer",
+      "minimum": 500,
+      "description": "Ngân sách cứng cho Tier0+1+2 gộp lại khi boot agent này. Gate 0 chặn dispatch nếu bundle vượt ngưỡng."
+    },
+    "concurrency": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Số instance tối đa chạy song song. Orchestrator so với COUNT(wbs.json.nodes có role này và status:running) — không có file đếm riêng."
+    },
+    "escalation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["after_fail", "notify"],
+      "properties": {
+        "after_fail": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "NGƯỠNG (config tĩnh). Bộ ĐẾM nằm ở wbs.json.nodes[*].gate.consecutive_fail (per-node) — fail 3 lần ở story A không được chặn story B."
+        },
+        "notify": {
+          "type": "string",
+          "description": "KEY tham chiếu vào kernel/config/escalation.json — không hard-code tên kênh thật ở đây"
+        }
+      }
+    }
+  }
+}

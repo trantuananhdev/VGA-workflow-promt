@@ -1,0 +1,215 @@
+{
+  "_comment": "BẢN MÁY ĐỌC của kernel/rules/routing-table.md. Gate 0 và Gate 2 kiểm bằng LOOKUP file này, không phải đọc hiểu bảng markdown. routing-table.md là bản giải thích cho người — sửa 1 trong 2 thì PHẢI sửa cái kia.",
+  "_unit_note": "unit = đơn vị nhỏ nhất có thể là 1 node trong wbs.json. Agent 1 phase -> unit = role. Agent nhiều phase -> unit = role-phase. scope quyết định số node sinh ra: story = 1/story, project = 1/project, release = 1/release.",
+  "_gate1_note": "'gate1' là pseudo-unit đại diện mốc BA+CTO signoff. Node có depends_on:['gate1'] thì generate_wbs khởi tạo status:ready ngay (vì skill chỉ chạy SAU khi Gate 1 pass) và KHÔNG giữ 'gate1' trong depends_on thật.",
+  "_two_graphs": "CÓ 2 ĐỒ THỊ RIÊNG BIỆT, không trộn vào 1 field: (a) 'feeds'/'depends_on' = Build Mode DAG, BẮT BUỘC đối xứng — mọi u trong X.feeds thì X phải nằm trong u.depends_on (hoặc u.conditional_depends_on). (b) 'runtime_feeds' = đường tắt Runtime Mode (feature_request size S, bug_report), KHÔNG đối xứng vì nó bỏ qua nhiều bước của Build DAG. Trộn 2 cái này vào 1 field làm validator không thể kiểm được đồ thị nào cả.",
+  "schema_version": 1,
+  "units": {
+    "po": {
+      "role": "po",
+      "phase": null,
+      "scope": "story",
+      "depends_on": [],
+      "feeds": [
+        "ba"
+      ],
+      "runtime_feeds": [
+        "dev-be",
+        "mobile-screen"
+      ],
+      "gate": null
+    },
+    "ba": {
+      "role": "ba",
+      "phase": null,
+      "scope": "story",
+      "depends_on": [
+        "po"
+      ],
+      "feeds": [
+        "cto"
+      ],
+      "runtime_feeds": [],
+      "gate": null
+    },
+    "cto": {
+      "role": "cto",
+      "phase": null,
+      "scope": "story",
+      "depends_on": [
+        "ba"
+      ],
+      "feeds": [
+        "gate1"
+      ],
+      "runtime_feeds": [],
+      "gate": "gate1"
+    },
+    "designer": {
+      "role": "designer",
+      "phase": null,
+      "scope": "story",
+      "depends_on": [
+        "gate1"
+      ],
+      "feeds": [
+        "mobile-screen"
+      ],
+      "runtime_feeds": [],
+      "gate": "gate5"
+    },
+    "dev-be": {
+      "role": "dev-be",
+      "phase": null,
+      "scope": "story",
+      "depends_on": [
+        "gate1"
+      ],
+      "feeds": [
+        "qa"
+      ],
+      "runtime_feeds": [],
+      "gate": "gate3"
+    },
+    "mobile-shell": {
+      "role": "mobile",
+      "phase": "mobile-shell",
+      "scope": "project",
+      "depends_on": [
+        "gate1"
+      ],
+      "feeds": [
+        "mobile-screen"
+      ],
+      "runtime_feeds": [],
+      "gate": "gate3"
+    },
+    "mobile-screen": {
+      "role": "mobile",
+      "phase": "mobile-screen",
+      "scope": "story",
+      "depends_on": [
+        "designer",
+        "mobile-shell"
+      ],
+      "feeds": [
+        "qa",
+        "ads-placement"
+      ],
+      "runtime_feeds": [],
+      "gate": "gate3"
+    },
+    "devops-infra": {
+      "role": "devops",
+      "phase": "devops-infra",
+      "scope": "project",
+      "depends_on": [
+        "gate1"
+      ],
+      "feeds": [],
+      "runtime_feeds": [],
+      "gate": "gate3"
+    },
+    "ads-setup": {
+      "role": "ads",
+      "phase": "ads-setup",
+      "scope": "project",
+      "depends_on": [
+        "gate1"
+      ],
+      "feeds": [
+        "ads-placement"
+      ],
+      "runtime_feeds": [],
+      "gate": "gate3"
+    },
+    "ads-placement": {
+      "role": "ads",
+      "phase": "ads-placement",
+      "scope": "story",
+      "depends_on": [
+        "mobile-screen",
+        "ads-setup"
+      ],
+      "feeds": [
+        "qa"
+      ],
+      "runtime_feeds": [],
+      "gate": "gate3",
+      "only_if": "story.Monetization == true"
+    },
+    "qa": {
+      "role": "qa",
+      "phase": null,
+      "scope": "story",
+      "depends_on": [
+        "dev-be",
+        "mobile-screen"
+      ],
+      "conditional_depends_on": [
+        {
+          "unit": "ads-placement",
+          "only_if": "story.Monetization == true"
+        }
+      ],
+      "feeds": [
+        "devops-release"
+      ],
+      "runtime_feeds": [],
+      "gate": "gate4"
+    },
+    "devops-release": {
+      "role": "devops",
+      "phase": "devops-release",
+      "scope": "release",
+      "depends_on": [
+        "qa"
+      ],
+      "feeds": [],
+      "runtime_feeds": [],
+      "gate": "gate6"
+    }
+  },
+  "_sync_note": "Sync Session (type:request/response) là trục giao tiếp RIÊNG, không đi theo feeds. Gate 0 kiểm request/response bằng map này. Quan hệ BẮT BUỘC đối xứng: nếu A được hỏi B thì B phải được trả lời A.",
+  "sync_allowed": {
+    "po": [],
+    "ba": [
+      "cto",
+      "designer",
+      "qa",
+      "ads"
+    ],
+    "cto": [
+      "ba",
+      "dev-be",
+      "mobile",
+      "devops",
+      "ads"
+    ],
+    "designer": [
+      "ba",
+      "mobile",
+      "ads"
+    ],
+    "dev-be": [
+      "cto"
+    ],
+    "mobile": [
+      "cto",
+      "designer"
+    ],
+    "ads": [
+      "ba",
+      "designer",
+      "cto"
+    ],
+    "devops": [
+      "cto"
+    ],
+    "qa": [
+      "ba"
+    ]
+  },
+  "_core_note": "core KHÔNG khai ở đây. core-ness của 1 unit = agents/<unit.role>/manifest.json .core — vì project-profile.active_capability_agents liệt kê AGENT (bật/tắt cả agent, không bật/tắt lẻ 1 phase).",
+  "_gate_numbering_note": "So gate danh theo THU TU TAO RA, khong theo thu tu trong DAG. Thu tu chay thuc te: gate0 (moi dispatch) -> gate1 (cto) -> gate2 (sau generate_wbs) -> gate5 (designer) -> gate3 (dev-be/mobile/ads) -> gate4 (qa) -> gate6 (devops-release)."
+}

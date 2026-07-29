@@ -1,0 +1,12 @@
+{
+  "_comment": "Chỉ giữ thuộc tính TÀI NGUYÊN của agent này. Quan hệ phụ thuộc/trigger KHÔNG khai ở đây — kernel/contracts/dag.json là authority duy nhất (trước đây khai cả 2 nơi và đã lệch 5/9 agent). Orchestrator Event Loop chỉ đọc: core, model_tier, max_context_tokens, concurrency, escalation.",
+  "agent_id": "qa",
+  "core": true,
+  "model_tier": "sonnet",
+  "max_context_tokens": 7000,
+  "concurrency": 2,
+  "escalation": {
+    "after_fail": 3,
+    "notify": "qa-alerts"
+  }
+}

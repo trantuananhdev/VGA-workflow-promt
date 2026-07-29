@@ -1,0 +1,13 @@
+{
+  "_comment": "Chỉ giữ thuộc tính TÀI NGUYÊN của agent này. Quan hệ phụ thuộc/trigger KHÔNG khai ở đây — kernel/contracts/dag.json là authority duy nhất (trước đây khai cả 2 nơi và đã lệch 5/9 agent). Orchestrator Event Loop chỉ đọc: core, model_tier, max_context_tokens, concurrency, escalation.",
+  "_concurrency_reason": "PHẢI là 1: `ba` là writer duy nhất của shared/PRD.md (xem kernel/contracts/data-ownership.json) — đó là 1 file đơn, nên 2 instance ba xử lý 2 epic song song sẽ ghi cùng file và đè mất dữ liệu của nhau. Không phải bottleneck vì `cto` xuôi dòng cũng concurrency 1. Muốn nâng lên >1 thì trước đó phải tách PRD.md thành thư mục per-story (validate.py mã F3 sẽ chặn nếu làm sai thứ tự).",
+  "agent_id": "ba",
+  "core": true,
+  "model_tier": "sonnet",
+  "max_context_tokens": 6000,
+  "concurrency": 1,
+  "escalation": {
+    "after_fail": 3,
+    "notify": "product"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "_comment": "SSOT cho mọi ngưỡng số của control plane. Trước đây các số này rải rác ở validate.py + message.schema.json + message-examples.md + handoff-contracts.md + gate0 — 5 nơi, đúng lớp lỗi trùng lặp đã khiến process-table.json bị bỏ. Sửa ngưỡng chỉ sửa ở đây; các file markdown khác CHỈ tham chiếu tên field, không lặp lại con số.",
+  "_who_reads": "kernel/tools/validate.py (cưỡng chế), Orchestrator (khi ra quyết định). Agent không cần đọc file này — ràng buộc đã nằm trong Gate mà nó phải qua.",
+  "schema_version": 1,
+  "message": {
+    "body_max_lines": 120,
+    "body_max_chars": 8000,
+    "_why": "Body được nạp vào context của agent NHẬN. Message dài làm nổ max_context_tokens của nó mà Gate 0 phần B không chặn được (phần B chỉ kiểm bundle Tier 0+1+2, không kiểm kích thước message). Log dài phải ra file + trỏ qua artifact_refs.",
+    "sync_max_turns_default": 3,
+    "_sync_why": "Mặc định khi message không khai max_turns. Vượt ngưỡng thì escalate, KHÔNG tự gia hạn — nếu 3 lượt chưa hội tụ thì vấn đề nằm ở chỗ khác, hỏi thêm cũng không giải quyết."
+  },
+  "node": {
+    "stale_running_hours": 6,
+    "_stale_why": "Node ở status:running quá lâu = agent hang hoặc chết mà không trả message. Nó giữ 1 slot concurrency vĩnh viễn và KHÔNG có gì tự báo — đây là failure mode im lặng thứ ba (cạnh quên processed_at và quên RECOMPUTE_READY). Đối chiếu bằng field started_at đã có sẵn trong node.",
+    "stale_action": "Orchestrator chuyển node -> waiting_human + set gate.escalated_at + gate.last_error='stale: running quá stale_running_hours giờ, agent không trả message'. KHÔNG tự retry ngầm: nếu agent thật sự đang chạy mà bị coi là stale rồi spawn lại, sẽ có 2 instance cùng làm 1 node.",
+    "max_resume_before_review": 3,
+    "_resume_why": "Node phải cứu quá số lần này thì không còn là lỗi ngẫu nhiên — là lỗi thiết kế của rules/skill role đó. Ghi shared/lessons_learned.md (lớp Evolution)."
+  },
+  "context": {
+    "_note": "max_context_tokens là PER-AGENT, khai trong agents/<role>/manifest.json — không đặt ở đây vì mỗi role một ngân sách khác nhau.",
+    "tier0_max_lines": 40,
+    "_tier0_why": "kernel/memory/today.md được nạp vào MỌI agent. Digest phình to là thuế đánh lên toàn hệ thống, không phải lên 1 agent. digest.py phải giữ dưới ngưỡng này.",
+    "token_chars_per_token": 3.0,
+    "_token_why": "Uoc luong token = ceil(so ky tu / gia tri nay). KHONG dung tokenizer that de giu stdlib-only, portable moi tool. Chon 3.0 (thap hon thuc te tieng Anh ~4) de UOC LUONG CAO HON thuc -> fail-safe: tha bao vuot ngan sach oan hon la de agent that su bi tran context. Tieng Viet co dau ton token hon nen 3.0 la co y."
+  }
+}

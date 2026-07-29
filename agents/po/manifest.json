@@ -1,0 +1,13 @@
+{
+  "_comment": "Chỉ giữ thuộc tính TÀI NGUYÊN của agent này. Quan hệ phụ thuộc/trigger KHÔNG khai ở đây — kernel/contracts/dag.json là authority duy nhất (trước đây khai cả 2 nơi và đã lệch 5/9 agent). Orchestrator Event Loop chỉ đọc: core, model_tier, max_context_tokens, concurrency, escalation.",
+  "_concurrency_reason": "PHẢI là 1: `po` là writer duy nhất của kernel/memory/project-profile.json và agents/po/memory/epics.json — đều là file đơn (xem kernel/contracts/data-ownership.json). 2 instance po xử lý 2 intake track song song sẽ ghi cùng file và đè mất dữ liệu. Không phải bottleneck: intake là việc xảy ra thưa, và mọi thứ xuôi dòng vẫn song song bình thường.",
+  "agent_id": "po",
+  "core": true,
+  "model_tier": "sonnet",
+  "max_context_tokens": 5000,
+  "concurrency": 1,
+  "escalation": {
+    "after_fail": 3,
+    "notify": "product"
+  }
+}

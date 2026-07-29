@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "boot-context.schema.json",
+  "title": "Boot Context Frontmatter (kernel -> agent)",
+  "description": "Schema cho frontmatter của kernel/boot/<node_id>.md — thứ agent NHẬN khi được spawn. Đây là chiều ngược của message.schema.json (agent -> kernel). Dùng CÙNG wire format (YAML frontmatter + markdown body) để cả hệ thống chỉ có 1 khuôn dạng, không phát minh dạng thứ hai.",
+
+  "_why_this_exists": "Trước đây chiều kernel->agent chỉ được mô tả bằng 1 dòng pseudo-code trong ORCHESTRATOR.md §7b, không schema, không ví dụ, không check. Hệ quả đã hiện rõ: cả 9 AGENT.md mô tả 'Input hợp lệ' bằng văn xuôi, mỗi file một kiểu, vì không có gì để bám vào. Đó đúng là lớp lỗi 'hai nơi cùng nói về một sự thật mà không nơi nào là chuẩn' — cùng nguyên nhân với manifest.depends_on vs dag.json (lệch 5/9 agent) và process-table vs wbs.json.",
+
+  "_body_structure": "Body markdown PHẢI có đúng các heading sau, đúng thứ tự, đúng số — agent prompt tham chiếu theo số mục nên không được đổi: '## 0. Trạng thái hệ thống (Tier 0)', '## 1. Luật vai trò của bạn (Tier 1)', '## 2. Việc cần làm', '## 3. Dữ liệu nghiệp vụ liên quan (Tier 2)', và '## 4. Lần thử trước đã fail vì' (CHỈ khi attempt > 1).",
+
+  "_agent_does_not_read_dag": "Các field allowed_* là kernel ĐÃ CÔ ĐẶC quyền hạn cho agent — agent KHÔNG cần đọc kernel/contracts/dag.json. Cùng nguyên tắc 'cô đặc' của handoff-contracts.md, áp cho chiều vào. Nhờ vậy agent không cần biết gì về topology hệ thống, chỉ cần biết nó được phép làm gì.",
+
+  "type": "object",
+  "additionalProperties": false,
+  "patternProperties": { "^_": {} },
+  "required": [
+    "schema_version", "node_id", "role", "track", "gate", "attempt",
+    "max_context_tokens", "bundle_tokens", "inbox",
+    "allowed_handoff_to", "allowed_sync_with", "allowed_skills",
+    "tier2_sources", "generated_at"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+
+    "node_id": {
+      "type": "string",
+      "description": "Node trong wbs.json mà agent này đang thực thi. Agent PHẢI dùng đúng giá trị này làm node_id khi emit message — đây là cách nó biết địa chỉ của chính mình (trước đây không có gì nói cho agent biết nó là node nào)."
+    },
+    "role": { "type": "string" },
+    "phase": {
+      "type": ["string", "null"],
+      "description": "null nếu agent 1 phase. Với agent nhiều phase (mobile/ads/devops), đây là thứ quyết định agent chạy nhánh nào trong AGENT.md của nó."
+    },
+    "track": { "type": "string", "enum": ["intake", "build", "runtime"] },
+    "track_id": { "type": ["string", "null"] },
+    "story_id": {
+      "type": ["string", "null"],
+      "description": "null với node scope=project/release (vd PROJ-mobile-shell) — không phải lỗi, agent phải xử lý được cả 2 trường hợp."
+    },
+
+    "gate": {
+      "type": ["string", "null"],
+      "description": "Gate agent phải qua trước khi handoff. Agent đọc kernel/gates/<gate>.md để biết cần bằng chứng gì. null = không có gate (vd unit po, ba)."
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "= gate.consecutive_fail + 1. attempt > 1 nghĩa là RETRY."
+    },
+    "last_error": {
+      "type": ["string", "null"],
+      "description": "Lý do fail của lần thử trước, BẮT BUỘC khác null khi attempt > 1. Đây là cách hiện thực nguyên tắc 'retry thì trả lỗi cụ thể về agent, KHÔNG gửi lại toàn bộ context từ đầu' (ORCHESTRATOR.md §7b) — trước đây nguyên tắc đó không có chỗ nào chứa dữ liệu để thực hiện."
+    },
+
+    "max_context_tokens": {
+      "type": "integer",
+      "description": "Copy từ agents/<role>/manifest.json — để chính agent cũng biết ngân sách của mình."
+    },
+    "bundle_tokens": {
+      "type": "integer",
+      "description": "Số token ƯỚC LƯỢNG THẬT của toàn bộ file boot context này (frontmatter + body), do kernel/tools/context_compile.py đếm. PHẢI <= max_context_tokens. Đây là thứ làm Gate 0 điều 8 chuyển từ 'không kiểm được' thành kiểm được."
+    },
+
+    "inbox": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Danh sách message_id đã được nhúng vào mục 2 của body. Rỗng chỉ hợp lệ với node gốc của track (vd INTAKE001-po) — node khác mà rỗng nghĩa là dispatch không có nguyên nhân."
+    },
+
+    "allowed_handoff_to": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "agent_id mà node này ĐƯỢC PHÉP emit handoff tới (kernel tính từ dag.json feeds/runtime_feeds). Agent gửi ra ngoài danh sách này sẽ bị Gate 0 điều 4 chặn."
+    },
+    "allowed_sync_with": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "agent_id mà node này được phép mở Sync Session (từ dag.json sync_allowed). Danh sách này đối xứng nên hỏi được thì trả lời được."
+    },
+    "allowed_skills": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Skill agent được phép gọi (từ agents/<role>/skills/ + skills/ dùng chung). Agent KHÔNG được tự bịa hành vi ngoài danh sách này."
+    },
+
+    "tier2_sources": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Nguồn thật đã được trích vào mục 3, dạng 'path#anchor'. Rỗng nghĩa là KHÔNG có dữ liệu nghiệp vụ nào cho (role, story) này — với node scope=story thì đó là LỖI TAG, không phải 'story không có nội dung'. Phân biệt được 2 ca này là lý do field tồn tại."
+    },
+
+    "generated_at": { "type": "string" },
+    "compiled_by": {
+      "type": "string",
+      "description": "Công cụ đã sinh file, vd 'context_compile.py v1'. Để biết boot context được sinh tự động hay ai đó ghép tay (ghép tay = không có bảo đảm về token budget)."
+    }
+  },
+
+  "allOf": [
+    {
+      "_note": "attempt > 1 thi bat buoc co last_error — khong co thi retry mu, agent lam lai y nhu lan truoc",
+      "if": { "properties": { "attempt": { "minimum": 2 } }, "required": ["attempt"] },
+      "then": { "required": ["last_error"], "properties": { "last_error": { "type": "string" } } }
+    }
+  ]
+}

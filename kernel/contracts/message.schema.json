@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "message.schema.json",
+  "title": "Mailbox Message Frontmatter",
+  "description": "Schema cho phần YAML frontmatter của mọi file trong kernel/mailbox/. Body markdown bên dưới KHÔNG bị schema hoá NHƯNG bị giới hạn KÍCH THƯỚC (xem _body_limit). Ví dụ thật: kernel/contracts/message-examples.md",
+  "_body_limit": "Body markdown TỐI ĐA 120 dòng / 8000 ký tự. Lý do: body được nạp vào context của agent nhận, message dài làm nổ max_context_tokens của nó mà Gate 0 không chặn được (Gate 0 chỉ kiểm bundle Tier0+1+2). Log/output dài PHẢI để ở file và trỏ qua artifact_refs, body chỉ giữ đoạn quyết định. validate.py mã D14/D15 cưỡng chế.",
+  "type": "object",
+  "required": ["message_id", "type", "node_id", "task_id", "from", "to", "status", "processed_at", "schema_version"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["handoff", "request", "response"]
+    },
+    "message_id": {
+      "type": "string",
+      "pattern": "^msg-.+-[0-9]+$",
+      "description": "ID duy nhất của CHÍNH message này. QUY ƯỚC CẤP PHÁT BẮT BUỘC: `msg-<node_id>-<n>`, với n = 1 + số message hiện có trong kernel/mailbox/ cùng node_id đó. Ví dụ: msg-US014-mobile-screen-1. Vì sao không đánh số tự do (msg-0031): 1 node chỉ có ĐÚNG 1 agent instance ghi, nên đánh số trong phạm vi node là không thể trùng; còn đánh số toàn cục thì 2 agent chạy song song (concurrency > 1) sẽ cùng chọn 1 số và ghi đè file của nhau. Validator cưỡng chế bằng D16 (trùng) và D17 (sai quy ước)."
+    },
+    "node_id": {
+      "type": "string",
+      "description": "ĐỊA CHỈ SCHEDULER — node trong kernel/memory/wbs.json của agent GỬI message này (luôn là node của người gửi, mọi type). Với handoff: đây là node vừa hoàn thành, Orchestrator đánh dấu nó done rồi tính lại runnable-set. Với request/response: đây là node đang bị block chờ câu trả lời. Thiếu field này thì Orchestrator KHÔNG biết message đóng node nào (1 story có nhiều node: dev-be, mobile-screen, qa...)."
+    },
+    "request_id": {
+      "type": "string",
+      "description": "Chỉ có ở type=request/response. Là ID CHUNG của cả cuộc trao đổi (Sync Session) — request và mọi response của nó đều mang cùng 1 request_id để ghép cặp, khác với message_id (mỗi message 1 ID riêng theo từng turn)"
+    },
+    "task_id": {
+      "type": "string",
+      "description": "story_id nghiệp vụ (vd US-014) — xuyên suốt vòng đời 1 feature, dùng để trace/đọc bằng mắt. KHÔNG dùng để routing (1 story có nhiều node) — routing dùng node_id."
+    },
+    "from": { "type": "string", "description": "agent_id người gửi — phải khớp role của node_id" },
+    "to": {
+      "type": "string",
+      "description": "agent_id người nhận. Gate 0 kiểm hợp lệ bằng lookup kernel/contracts/dag.json (feeds cho handoff, sync_allowed cho request/response)."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "answered", "rejected", "resolved"],
+      "description": "Trạng thái NGHIỆP VỤ của message (do agent quyết định). KHÔNG phải cờ lọc của scheduler — cờ đó là processed_at."
+    },
+    "processed_at": {
+      "type": ["string", "null"],
+      "description": "CƠ CHẾ CONSUME. null = chưa được scheduler xử lý. Orchestrator — và CHỈ Orchestrator — set timestamp vào đây ngay sau khi đã ghi event-log + cập nhật wbs.json cho message này. Vòng lặp Orchestrator lọc theo processed_at == null (KHÔNG lọc theo status). Thiếu cơ chế này thì mỗi vòng lặp sẽ dispatch lại đúng message cũ -> loop vô hạn."
+    },
+    "turn": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Bắt buộc nếu type=request/response"
+    },
+    "max_turns": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Bắt buộc nếu type=request — vượt số này phải escalate, không tự gia hạn"
+    },
+    "gate_ref": {
+      "type": "string",
+      "description": "Tên Gate liên quan nếu message này là kết quả 1 gate check"
+    },
+    "artifact_refs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Con trỏ tới file bằng chứng (log lint/test, build output, coverage report, screenshot...). BẮT BUỘC dùng cho log dài thay vì dán nguyên văn vào body: body message được nạp vào context của agent nhận, một log 5000 dòng sẽ làm nổ max_context_tokens của nó mà không gate nào chặn được (Gate 0 chỉ kiểm bundle Tier0+1+2, không kiểm kích thước message). Quy tắc: body chỉ chứa ĐOẠN QUYẾT ĐỊNH (dòng lỗi thật, ≤20 dòng), file đầy đủ để ở đây. Gate 0 kiểm mọi path trong đây có tồn tại thật."
+    },
+    "event": {
+      "type": "string",
+      "description": "vd: doc_drift_detected, bug_report, crash_alert — dùng cho routing Runtime Mode"
+    },
+    "schema_version": { "type": "integer", "const": 1 }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "type": { "const": "request" } } },
+      "then": { "required": ["request_id", "turn", "max_turns"] }
+    },
+    {
+      "if": { "properties": { "type": { "const": "response" } } },
+      "then": { "required": ["request_id", "turn"] }
+    }
+  ]
+}
