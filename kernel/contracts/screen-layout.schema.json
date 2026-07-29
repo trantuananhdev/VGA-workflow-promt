@@ -1,0 +1,345 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "screen-layout.schema.json",
+  "title": "Screen Layout (designer-screen -> mobile-screen)",
+  "description": "Schema cho shared/design/screens/<story_id>.json — hợp đồng máy đọc duy nhất giữa `designer-screen` (writer) và `mobile-screen` (reader). Mỗi COMPONENT là 1 đơn vị kiểm được độc lập, không phải 1 khối phẳng.",
+
+  "_why_this_exists": "TRƯỚC ĐÂY layout JSON chỉ được định nghĩa bằng ĐÚNG 1 DÒNG trong agents/designer/skills/generate_wireframe/SKILL.md: `{ screen_id, states, components, data_bindings, ad_slots }` — không schema, không ví dụ (shared/design/screens/ rỗng, chỉ có .gitkeep), không check. Hệ quả đo được: Gate 5 chỉ kiểm ĐẾM ở mức màn hình (số state >= số acceptance criteria) và tính hợp lệ của token ref — không có gì kiểm được TỪNG component bên trong. Đó là chỗ sinh 'bug vặt': field null không ai xử lý, nút bấm dẫn tới state không tồn tại, input không có validation, text dài làm vỡ layout. Cả 2 lớp lỗi này (logic + hiển thị) chỉ lộ ra ở Gate 4 (QA) hoặc khi người dùng thật gặp — trong khi chúng hoàn toàn kiểm được ở tầng dữ liệu, TRƯỚC khi mobile-screen sinh 1 dòng code nào.",
+
+  "_divide_and_conquer": "Component KHÔNG phẳng: field `parent` cho phép bẻ 1 card thành các phần bên trong (ảnh / tên / giá / rating), mỗi phần là 1 entry riêng có contract riêng và được kiểm riêng. Đây là hiện thực của triết lý 'chia để trị' ở tầng dữ liệu: kiểm 1 card như 1 khối thì không phát hiện được 'giá bị null không ai xử lý'; bẻ ra từng phần thì phát hiện được bằng máy.",
+
+  "_single_direction_refs": "Component khai `appears_in_states`, và state KHÔNG khai danh sách component. Cố ý 1 chiều: khai 2 chiều thì 2 nơi cùng nói về 1 sự thật và chúng SẼ lệch (đúng lớp lỗi đã khiến manifest.depends_on vs dag.json lệch 5/9 agent, và process-table vs wbs.json bị bỏ). Cùng lý do token ref chỉ mang TÊN chứ không mang giá trị.",
+
+  "_split_schema_vs_validator": "File này kiểm được HÌNH DẠNG từng entry + ràng buộc TRONG 1 entry (vd action != none thì phải có đích). Ràng buộc LIÊN entry — target_state phải tồn tại thật, parent không được tạo vòng, đúng 1 emphasis=primary mỗi state, giới hạn số cỡ chữ/số màu mỗi màn — KHÔNG biểu diễn được bằng JSON Schema, nên nằm ở kernel/tools/validate.py (nhóm E13+). Chia vậy để mỗi bên làm đúng việc nó làm được, không phải để bỏ sót.",
+
+  "type": "object",
+  "additionalProperties": false,
+  "patternProperties": { "^_": {} },
+  "required": ["schema_version", "screen_id", "states", "components"],
+
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+
+    "screen_id": {
+      "type": "string",
+      "description": "Bằng story_id của story này (vd 'US-002'). Phải khớp tên file — screens/US-002.json thì screen_id là 'US-002'."
+    },
+
+    "states": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Mọi trạng thái UI của màn hình. Số lượng phải >= số (acceptance criteria + error state) của story — Gate 5 điều 1.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "patternProperties": { "^_": {} },
+        "required": ["state_id", "kind"],
+        "properties": {
+          "state_id": { "type": "string", "description": "Duy nhất trong màn hình. Là đích được trỏ tới bởi interaction.target_state của component." },
+          "kind": {
+            "type": "string",
+            "enum": ["success", "loading", "empty", "error", "permission_denied", "partial_success", "offline", "session_expired"],
+            "description": "Trùng bộ 7 UX-state bắt buộc trong agents/ba/AGENT.md mục A (+ 'success'). Dùng enum đóng để Gate 5 đối chiếu được với checklist của `ba` bằng máy, thay vì so khớp tên tự do."
+          },
+          "entered_when": {
+            "type": ["string", "null"],
+            "description": "Điều kiện/nguyên nhân vào state này, viết bằng chữ cho `mobile-screen` hiểu. Bắt buộc khác null với mọi kind != 'success' — không nói rõ 'khi nào lỗi này xảy ra' thì dev phải tự đoán, và đó là nguồn lỗi logic."
+          },
+          "recovery_action": {
+            "type": ["string", "null"],
+            "description": "Người dùng thoát khỏi state này bằng cách nào (vd 'nút Thử lại', 'tự hết sau khi có mạng'). Bắt buộc với kind error/offline/permission_denied/session_expired: state lỗi KHÔNG có đường ra là bug UX, không phải quyết định thiết kế."
+          }
+        },
+        "allOf": [
+          {
+            "_note": "state khong phai success thi phai noi ro khi nao no xay ra",
+            "if": { "properties": { "kind": { "not": { "const": "success" } } }, "required": ["kind"] },
+            "then": { "required": ["entered_when"], "properties": { "entered_when": { "type": "string", "minLength": 1 } } }
+          },
+          {
+            "_note": "state loi thi phai co duong ra — day la bug UX pho bien nhat va kiem duoc bang may",
+            "if": {
+              "properties": { "kind": { "enum": ["error", "offline", "permission_denied", "session_expired"] } },
+              "required": ["kind"]
+            },
+            "then": { "required": ["recovery_action"], "properties": { "recovery_action": { "type": "string", "minLength": 1 } } }
+          }
+        ]
+      }
+    },
+
+    "components": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Danh sách PHẲNG mọi component, kể cả phần bên trong component khác (dùng `parent` để lồng). Phẳng + tham chiếu thay vì lồng thật, để mỗi entry kiểm được độc lập và không có entry nào bị chôn sâu khỏi tầm kiểm.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "patternProperties": { "^_": {} },
+        "required": ["component_id", "type", "appears_in_states", "emphasis"],
+        "properties": {
+          "component_id": { "type": "string", "description": "Duy nhất trong màn hình. Là đích của field `parent` của component con." },
+
+          "type": {
+            "type": "string",
+            "enum": [
+              "section", "card", "list", "grid", "row", "column",
+              "text", "image", "icon", "badge", "avatar", "chart", "media_player",
+              "button", "icon_button", "input", "select", "toggle", "slider", "checkbox", "radio", "search_field",
+              "sheet", "dialog", "snackbar", "tooltip", "menu",
+              "app_bar", "tab_bar", "bottom_nav", "nav_drawer",
+              "progress_indicator", "skeleton", "empty_illustration",
+              "ad_slot"
+            ],
+            "description": "Enum ĐÓNG, cố ý: type tự do thì `mobile-screen` phải đoán widget native tương ứng, và mỗi story sẽ đoán khác nhau. Đóng thì việc map type -> widget của từng platform quyết định ĐÚNG 1 LẦN."
+          },
+
+          "appears_in_states": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string" },
+            "description": "state_id mà component này hiển thị. Rỗng = component chết (không state nào render nó) -> validate.py chặn. Mọi giá trị phải tồn tại trong states[].state_id."
+          },
+
+          "emphasis": {
+            "type": "string",
+            "enum": ["primary", "secondary", "tertiary"],
+            "description": "Trọng số thị giác. Mỗi state có NHIỀU NHẤT 1 component emphasis=primary (validate.py mã E19) — 2 primary là 2 CTA tranh tiêu điểm, đúng lỗi hierarchy mà không gate nào bắt được trước đây. Là TRẦN chứ không phải đẳng thức: 0 primary hợp lệ với màn danh sách/so sánh, vì nâng 1 card lên trên các card khác phá chính chức năng so sánh của màn (xem limits.json -> design._primary_why_not_exactly_one)."
+          },
+
+          "order": {
+            "type": ["integer", "null"],
+            "description": "Thứ tự đọc/hiển thị trong cùng `parent` (nhỏ trước). null chỉ hợp lệ với overlay (sheet/dialog/snackbar/tooltip/menu) vì chúng không nằm trong luồng đọc."
+          },
+
+          "parent": {
+            "type": ["string", "null"],
+            "description": "component_id của khối chứa nó. null = nằm trực tiếp ở gốc màn hình. Đây là cơ chế 'chia để trị': bẻ card thành ảnh/tên/giá/rating, mỗi phần kiểm riêng."
+          },
+
+          "group": {
+            "type": ["string", "null"],
+            "description": "Nhãn nhóm logic (vd 'product_meta') để `mobile-screen` biết các phần nào nên đi cùng nhau khi responsive/wrap. Khác `parent`: parent là quan hệ chứa, group là quan hệ 'cùng thuộc về nhau'."
+          },
+
+          "pattern_ref": {
+            "type": ["string", "null"],
+            "description": "Trỏ mục trong file pattern craft, dạng 'design_patterns/<tag>#<số mục>' (vd 'design_patterns/e-commerce-marketplace#3'). Cho biết bố cục này dựa trên căn cứ craft nào chứ không phải tự nghĩ ra. null = component tầm thường không cần căn cứ."
+          },
+
+          "registry_ref": {
+            "type": ["string", "null"],
+            "description": "`category` trong component-registry (core hoặc per-story) nếu component này do thư viện ngoài đảm nhiệm. null = dựng bằng widget nền tảng. Mọi giá trị khác null phải tồn tại thật trong registry -> validate.py."
+          },
+
+          "style": {
+            "type": "object",
+            "additionalProperties": { "type": "string" },
+            "description": "Mọi value PHẢI là chuỗi 'token:<nhóm>.<key>'. Không hex, không số trần — Gate 5 điều 5. additionalProperties là string cố ý: số trần không lọt qua được schema."
+          },
+
+          "binds": {
+            "type": "array",
+            "description": "Field dữ liệu component này hiển thị. Mỗi field BẮT BUỘC khai on_null — đây là thứ chặn lớp lỗi hiển thị phổ biến nhất (field rỗng -> ô trắng / crash / chữ 'null' hiện ra cho người dùng).",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "patternProperties": { "^_": {} },
+              "required": ["field", "on_null"],
+              "properties": {
+                "field": { "type": "string", "description": "Đường dẫn field trong api-contracts.json (vd 'product.price'). Phải tồn tại thật — Gate 5 điều 2." },
+                "on_null": {
+                  "type": "string",
+                  "enum": ["hide_component", "placeholder", "dash", "zero", "fallback_text", "skeleton"],
+                  "description": "Hiển thị gì khi field null/rỗng. KHÔNG có mặc định ngầm: bỏ trống = dev tự quyết mỗi chỗ một kiểu."
+                },
+                "fallback_text": { "type": ["string", "null"], "description": "Bắt buộc khác null khi on_null = 'fallback_text'." },
+                "format": {
+                  "type": ["string", "null"],
+                  "enum": ["currency", "date", "datetime", "relative_time", "number", "percent", "duration", "text", null],
+                  "description": "Định dạng khi render. Bắt buộc với field số/thời gian: thiếu format là lý do timestamp thô hoặc số không phân cách lọt ra UI."
+                }
+              },
+              "allOf": [
+                {
+                  "_note": "chon fallback_text thi phai co text that",
+                  "if": { "properties": { "on_null": { "const": "fallback_text" } }, "required": ["on_null"] },
+                  "then": { "required": ["fallback_text"], "properties": { "fallback_text": { "type": "string", "minLength": 1 } } }
+                }
+              ]
+            }
+          },
+
+          "text_overflow": {
+            "type": ["object", "null"],
+            "additionalProperties": false,
+            "patternProperties": { "^_": {} },
+            "required": ["max_lines", "behavior"],
+            "description": "Bắt buộc khác null với type text/badge. Chặn lớp lỗi hiển thị kinh điển: tên sản phẩm dài làm vỡ bố cục, không ai phát hiện vì mock data toàn tên ngắn.",
+            "properties": {
+              "max_lines": { "type": ["integer", "null"], "minimum": 1, "description": "null = không giới hạn (chỉ hợp lý với đoạn văn dài)." },
+              "behavior": { "type": "string", "enum": ["ellipsis", "wrap", "scroll", "shrink"] }
+            }
+          },
+
+          "interaction": {
+            "type": ["object", "null"],
+            "additionalProperties": false,
+            "patternProperties": { "^_": {} },
+            "required": ["trigger", "action"],
+            "description": "null = component tĩnh. Bắt buộc khác null với mọi type điều khiển (button/input/toggle/...). Đây là chỗ chặn lỗi LOGIC: hành động không có đích, nút không rõ khi nào bị disable, input không có validation.",
+            "properties": {
+              "trigger": { "type": "string", "enum": ["tap", "long_press", "double_tap", "swipe", "drag", "text_change", "submit", "scroll_end", "pull_refresh", "none"] },
+              "action": { "type": "string", "enum": ["navigate", "submit", "toggle", "expand", "collapse", "retry", "dismiss", "select", "none"] },
+              "target_state": { "type": ["string", "null"], "description": "state_id trong CÙNG màn hình mà hành động dẫn tới. Phải tồn tại thật -> validate.py." },
+              "target_screen": { "type": ["string", "null"], "description": "story_id của màn hình khác nếu action = navigate ra ngoài." },
+              "disabled_when": {
+                "type": ["string", "null"],
+                "description": "Điều kiện làm control bị disable, viết bằng chữ (vd 'giỏ hàng rỗng'). null nghĩa là KHẲNG ĐỊNH luôn bấm được — không phải 'chưa nghĩ tới'. Ép khai tường minh vì 'nút bấm được lúc không nên bấm được' là lỗi logic hay gặp nhất."
+              },
+              "validation": {
+                "type": "array",
+                "description": "Bắt buộc >= 1 phần tử với type input/select/search_field. Không validation = mọi input rác đi thẳng xuống backend.",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "patternProperties": { "^_": {} },
+                  "required": ["rule", "error_state"],
+                  "properties": {
+                    "rule": { "type": "string", "description": "Luật viết bằng chữ (vd 'bắt buộc, tối đa 50 ký tự', 'đúng định dạng email')." },
+                    "error_state": { "type": "string", "description": "state_id hiển thị khi luật này fail. Phải tồn tại thật -> validate.py." }
+                  }
+                }
+              }
+            },
+            "allOf": [
+              {
+                "_note": "hanh dong khac none thi phai co dich — action tro vao hu khong la loi logic",
+                "if": {
+                  "properties": { "action": { "not": { "enum": ["none", "dismiss", "toggle", "expand", "collapse", "select"] } } },
+                  "required": ["action"]
+                },
+                "then": {
+                  "anyOf": [
+                    { "required": ["target_state"], "properties": { "target_state": { "type": "string", "minLength": 1 } } },
+                    { "required": ["target_screen"], "properties": { "target_screen": { "type": "string", "minLength": 1 } } }
+                  ]
+                }
+              }
+            ]
+          },
+
+          "a11y": {
+            "type": ["object", "null"],
+            "additionalProperties": false,
+            "patternProperties": { "^_": {} },
+            "description": "Bắt buộc khác null với mọi component tương tác và mọi image/icon mang nghĩa. Bổ sung cho tokens.json -> a11y_contract (mức nền toàn app).",
+            "properties": {
+              "label": { "type": ["string", "null"], "description": "Nhãn cho screen reader. Bắt buộc với icon_button và image mang nghĩa — icon không có label là ô trống với người dùng khiếm thị." },
+              "decorative": { "type": "boolean", "description": "true = ảnh/icon thuần trang trí, screen reader bỏ qua. Cố ý tách khỏi 'quên khai label'." },
+              "min_tap_target_ok": { "type": "boolean", "description": "Khẳng định vùng bấm >= 44pt (iOS) / 48dp (Material) theo a11y_contract. Bắt buộc true với component tương tác." }
+            }
+          }
+        },
+
+        "allOf": [
+          {
+            "_note": "component dieu khien BAT BUOC co interaction",
+            "if": {
+              "properties": { "type": { "enum": ["button", "icon_button", "input", "select", "toggle", "slider", "checkbox", "radio", "search_field"] } },
+              "required": ["type"]
+            },
+            "then": { "required": ["interaction"], "properties": { "interaction": { "type": "object" } } }
+          },
+          {
+            "_note": "input phai co validation — khong co thi rac di thang xuong backend",
+            "if": {
+              "properties": { "type": { "enum": ["input", "select", "search_field"] } },
+              "required": ["type"]
+            },
+            "then": {
+              "required": ["interaction"],
+              "properties": {
+                "interaction": {
+                  "type": "object",
+                  "required": ["validation"],
+                  "properties": { "validation": { "type": "array", "minItems": 1 } }
+                }
+              }
+            }
+          },
+          {
+            "_note": "text/badge phai khai text_overflow — chan loi vo bo cuc do noi dung dai",
+            "if": { "properties": { "type": { "enum": ["text", "badge"] } }, "required": ["type"] },
+            "then": { "required": ["text_overflow"], "properties": { "text_overflow": { "type": "object" } } }
+          },
+          {
+            "_note": "component tuong tac phai khai a11y voi min_tap_target_ok = true",
+            "if": {
+              "properties": { "type": { "enum": ["button", "icon_button", "input", "select", "toggle", "slider", "checkbox", "radio", "search_field"] } },
+              "required": ["type"]
+            },
+            "then": {
+              "required": ["a11y"],
+              "properties": {
+                "a11y": {
+                  "type": "object",
+                  "required": ["min_tap_target_ok"],
+                  "properties": { "min_tap_target_ok": { "const": true } }
+                }
+              }
+            }
+          },
+          {
+            "_note": "icon_button khong co label = o trong voi screen reader",
+            "if": { "properties": { "type": { "const": "icon_button" } }, "required": ["type"] },
+            "then": {
+              "required": ["a11y"],
+              "properties": {
+                "a11y": { "type": "object", "required": ["label"], "properties": { "label": { "type": "string", "minLength": 1 } } }
+              }
+            }
+          }
+        ]
+      }
+    },
+
+    "ad_slots": {
+      "type": "array",
+      "description": "Rỗng khi story có Monetization: false. Vị trí khai bằng QUAN HỆ (sau component nào / vùng nào), KHÔNG bằng toạ độ pixel — bố cục native là flow-based, toạ độ tuyệt đối sẽ sai ngay khi đổi cỡ máy.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "patternProperties": { "^_": {} },
+        "required": ["slot_id", "format", "region"],
+        "properties": {
+          "slot_id": { "type": "string" },
+          "format": { "type": "string", "enum": ["banner", "native", "interstitial", "rewarded", "app_open"] },
+          "region": { "type": "string", "enum": ["top", "inline", "bottom", "fullscreen"] },
+          "after_component_id": { "type": ["string", "null"], "description": "Bắt buộc khác null khi region = 'inline' — quảng cáo chèn giữa luồng phải biết chèn sau cái gì." },
+          "appears_in_states": { "type": "array", "items": { "type": "string" }, "description": "Không được chứa state kind='error'/'loading' — chèn quảng cáo lên màn lỗi là lỗi UX, ads/AGENT.md và check_ad_policy chặn ở tầng dưới, nhưng chặn từ đây rẻ hơn." }
+        },
+        "allOf": [
+          {
+            "_note": "inline thi phai biet chen sau component nao",
+            "if": { "properties": { "region": { "const": "inline" } }, "required": ["region"] },
+            "then": { "required": ["after_component_id"], "properties": { "after_component_id": { "type": "string", "minLength": 1 } } }
+          }
+        ]
+      }
+    },
+
+    "design_metrics_declared": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "patternProperties": { "^_": {} },
+      "description": "Số ĐO THẬT do `designer-screen` tự tính rồi khai ra, để validate.py đối chiếu thay vì tự suy diễn. Cùng nguyên tắc 'báo bằng SỐ, không báo bằng câu đã kiểm tra' mà Gate 7 điều 3 đã áp cho contrast.",
+      "properties": {
+        "distinct_type_sizes": { "type": "integer", "minimum": 1, "description": "Số cỡ chữ khác nhau dùng trong màn. Nhiều = nhiễu typographic." },
+        "distinct_colors": { "type": "integer", "minimum": 1, "description": "Số token màu khác nhau dùng trong màn." },
+        "spacing_keys_used": { "type": "array", "items": { "type": "string" }, "description": "Các key spacing đã dùng, vd ['spacing.sm','spacing.md']. Nhảy loạn xs->xl->sm là mất nhịp." },
+        "root_level_component_count": { "type": "integer", "minimum": 1, "description": "Số component có parent = null. Quá nhiều = màn hình không có cấu trúc phân cấp." }
+      }
+    }
+  }
+}

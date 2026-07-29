@@ -1,0 +1,15 @@
+{
+  "_comment": "SSOT tech stack do CTO chot, dung de designer/component_discovery khoanh vung tim thu vien UI theo dung platform/ngon ngu. entries dung 'story_id':'PROJ' vi day la du lieu cap project (theo dung quy uoc PROJECT_STORY_KEY cua context_compile.py), khong phai theo tung story.",
+  "schema_version": 1,
+  "entries": [
+    {
+      "story_id": "PROJ",
+      "roles": ["designer"],
+      "platform": "<android|ios|flutter|...>",
+      "ui_framework": "<jetpack_compose|swiftui|uikit|flutter|...>",
+      "language": "<kotlin|swift|dart|...>",
+      "build_system": "<gradle|spm|cocoapods|pub|...>",
+      "min_sdk": "<vd 24 (Android API) hoac '15.0' (iOS)>"
+    }
+  ]
+}

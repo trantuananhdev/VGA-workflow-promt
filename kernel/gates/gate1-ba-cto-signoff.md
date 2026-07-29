@@ -41,8 +41,9 @@ Orchestrator **append** 1 entry vào `signoffs` mỗi lần tiêu thụ 1 `respo
 6. **Mỗi entry `signoffs` phải trỏ tới `message_id` thật** có `from` khớp `role` của entry đó — chặn việc 1 bên ký thay bên kia. Đây là lý do entry lưu `message_id` chứ không chỉ lưu tên role.
 7. **`shared/PRD.md` có khối anchor `story:PROJ` với role `designer`** (`validate.py` mã `E9`). Thiếu = phase `design-system` sẽ nhận Tier 2 rỗng và tự bịa design intent (đối tượng người dùng/tông màu/app tham chiếu) — bắt ở đây rẻ hơn nhiều so với bắt lúc `context_compile.py` chặn dispatch, vì lúc đó đã tốn 1 vòng chờ.
 8. **Mọi story thật trong Epic đã có entry trong `shared/contracts/domain-map.json`** (`validate.py` mã `E10`/`E11`) — thiếu = `designer-screen` của story đó không biết nạp domain skill nào.
+9. **`shared/contracts/tech-stack.json` tồn tại, parse được, và entry `story_id: "PROJ"` có `platform`/`ui_framework`/`language` khác rỗng** (`validate.py` mã `E12`) — thiếu = `design-system` sẽ không biết khoanh vùng tìm thư viện UI theo platform nào khi chạy skill `component_discovery`, và sẽ tự đoán hoặc bỏ qua bước tìm kiếm.
 
-Điều 7-8 là 2 điều kiện **mới**, thêm cùng đợt với nhánh Design/domain (xem `shared/lessons_learned.md`) — trước đây Gate 1 không kiểm gì về input của nhánh Design, nên `ba` có thể bỏ qua hoàn toàn checklist/khối `PROJ`/`classify_domain` mà Gate 1 vẫn pass. Chạy `python kernel/tools/validate.py` (không chỉ đọc file này) mới coi là đã kiểm — đúng nguyên tắc "Gate nào có công cụ thì PHẢI chạy công cụ" (`ORCHESTRATOR.md` bất biến #5).
+Điều 7-9 là các điều kiện **mới**, thêm cùng đợt với nhánh Design/domain (xem `shared/lessons_learned.md`) — trước đây Gate 1 không kiểm gì về input của nhánh Design, nên `ba`/`cto` có thể bỏ qua hoàn toàn checklist/khối `PROJ`/`classify_domain`/tech stack mà Gate 1 vẫn pass. Chạy `python kernel/tools/validate.py` (không chỉ đọc file này) mới coi là đã kiểm — đúng nguyên tắc "Gate nào có công cụ thì PHẢI chạy công cụ" (`ORCHESTRATOR.md` bất biến #5).
 
 ---
 
@@ -54,6 +55,7 @@ Orchestrator **append** 1 entry vào `signoffs` mỗi lần tiêu thụ 1 `respo
 | `turn > max_turns` | Dừng Sync Session, **không tự chọn bên thắng**. Node `cto` → `waiting_human` + `escalated_at`, thông báo theo `kernel/config/escalation.json[<key>]` (`key` từ `escalation.notify` của bên đang treo). Quay lại bằng `kernel/tools/resume.py`. |
 | Có signoff nhưng nội dung thiếu (vd edge case chưa có phương án) | Đây là lỗi nội dung, không phải cơ chế — bên phát hiện mở `request` mới, `signoffs` của bên kia **bị xoá** để buộc ký lại sau khi sửa. |
 | `validate.py` báo `E9`/`E10`/`E11` | Lỗi của `ba` (khối `PROJ` hoặc `domain-map.json` thiếu) — **không** ký thay, trả về `ba` bổ sung rồi chạy lại `validate.py` trước khi ký lại. |
+| `validate.py` báo `E12` | Lỗi của `cto` (`tech-stack.json` thiếu hoặc rỗng) — **không** ký thay, `cto` bổ sung rồi chạy lại `validate.py` trước khi ký lại. |
 
 ---
 

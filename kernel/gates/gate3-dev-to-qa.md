@@ -8,6 +8,9 @@
 3. Verify của `git_workflow` đạt đủ: có commit `Refs: <task_id>`, PR mở, CI xanh.
 4. **Điều kiện bổ sung theo phase:**
    - `mobile-shell`: `check_platform_compliance` trả `violations: []` (xem `agents/mobile/skills/check_platform_compliance/SKILL.md`) — chặn ở đây rẻ hơn nhiều so với phát hiện sau khi đã build hàng loạt story lên trên shell sai chuẩn.
+   - `mobile-screen`: **hợp đồng layout đã được thực hiện đủ**, báo bằng **số** trong handoff body (`contract_compliance`): số UI state trong code / số `states[]`, số component đã dựng / số `components[]`, số `binds[]` đã xử lý `on_null` / tổng `binds[]`, số control đã bind `disabled_when` / tổng control, số input có validation client-side / tổng input. **Lệch ở bất kỳ tỉ số nào = FAIL**, kèm danh sách cụ thể field bị bỏ. Xem `agents/mobile/skills/implement_screen_contract/SKILL.md`.
+
+   > **Vì sao điều này cần 1 điều kiện riêng:** điều 1-2 (lint + test) **về bản chất không bắt được** lớp lỗi này. Code bỏ qua `on_null` vẫn lint sạch và vẫn pass mọi unit test có dữ liệu đầy đủ — nó chỉ hỏng khi field thật bị rỗng ngoài production. Tương tự `text_overflow` (chỉ vỡ khi tên dài), `disabled_when` (chỉ sai khi user bấm đúng lúc không nên bấm). `designer-screen` đã khai đủ và Gate 5 đã kiểm từng component; nếu Gate 3 không kiểm phía thực hiện thì toàn bộ chuỗi đó **dừng lại ở giấy tờ**.
    - `ads-setup`: `setup_consent_management` đã test đủ 3 case (đồng ý / từ chối / ngoài vùng GDPR) — chưa xong consent thì KHÔNG được phép request quảng cáo ở phase sau.
    - `ads-placement`: `check_ad_policy` trả `violations: []` (đây cũng là điều kiện 5 của Gate 4).
 

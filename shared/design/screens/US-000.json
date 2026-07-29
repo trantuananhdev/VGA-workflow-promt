@@ -1,0 +1,188 @@
+{
+  "_comment": "VI DU MAU — xoa file nay khi project that bat dau. Giu de lam ban tham chieu duy nhat cho kernel/contracts/screen-layout.schema.json (truoc day thu muc nay rong, khong co vi du nao doi chieu). Trung quy uoc US-000 dang dung o shared/PRD.md va shared/contracts/domain-map.json.",
+  "_demonstrates": "Man danh sach san pham e-commerce: 4 state (loading/success/empty/error), card duoc BE thanh tung phan ben trong qua field parent (card -> card_img/card_name/card_price) de moi phan kiem duoc rieng, moi bind co on_null, moi text co text_overflow, state loi co recovery_action + nut retry tro ve state ton tai that. state 'loaded' co 0 primary — HOP LE va co y: man danh sach khong nen nang 1 card len tren cac card khac (xem design_patterns/e-commerce-marketplace muc 2).",
+  "schema_version": 1,
+  "screen_id": "US-000",
+  "states": [
+    {
+      "state_id": "loading",
+      "kind": "loading",
+      "entered_when": "dang goi GET /products"
+    },
+    {
+      "state_id": "loaded",
+      "kind": "success"
+    },
+    {
+      "state_id": "empty",
+      "kind": "empty",
+      "entered_when": "API tra mang rong"
+    },
+    {
+      "state_id": "net_error",
+      "kind": "error",
+      "entered_when": "mat mang hoac 5xx",
+      "recovery_action": "nut Thu lai"
+    }
+  ],
+  "components": [
+    {
+      "component_id": "skeleton_list",
+      "type": "skeleton",
+      "appears_in_states": [
+        "loading"
+      ],
+      "emphasis": "secondary",
+      "order": 1,
+      "parent": null,
+      "style": {
+        "bg": "token:color.surface"
+      }
+    },
+    {
+      "component_id": "product_list",
+      "type": "list",
+      "appears_in_states": [
+        "loaded"
+      ],
+      "emphasis": "secondary",
+      "order": 1,
+      "parent": null,
+      "pattern_ref": "design_patterns/e-commerce-marketplace#1",
+      "style": {
+        "pad": "token:spacing.md"
+      }
+    },
+    {
+      "component_id": "card",
+      "type": "card",
+      "appears_in_states": [
+        "loaded"
+      ],
+      "emphasis": "secondary",
+      "order": 1,
+      "parent": "product_list",
+      "style": {
+        "bg": "token:color.surface",
+        "pad": "token:spacing.sm"
+      }
+    },
+    {
+      "component_id": "card_img",
+      "type": "image",
+      "appears_in_states": [
+        "loaded"
+      ],
+      "emphasis": "secondary",
+      "order": 1,
+      "parent": "card",
+      "style": {
+        "radius": "token:radius.sm"
+      },
+      "binds": [
+        {
+          "field": "product.image_url",
+          "on_null": "placeholder"
+        }
+      ],
+      "a11y": {
+        "decorative": true
+      }
+    },
+    {
+      "component_id": "card_name",
+      "type": "text",
+      "appears_in_states": [
+        "loaded"
+      ],
+      "emphasis": "secondary",
+      "order": 2,
+      "parent": "card",
+      "style": {
+        "font": "token:typography.body"
+      },
+      "binds": [
+        {
+          "field": "product.name",
+          "on_null": "fallback_text",
+          "fallback_text": "Khong ro ten"
+        }
+      ],
+      "text_overflow": {
+        "max_lines": 2,
+        "behavior": "ellipsis"
+      }
+    },
+    {
+      "component_id": "card_price",
+      "type": "text",
+      "appears_in_states": [
+        "loaded"
+      ],
+      "emphasis": "secondary",
+      "order": 3,
+      "parent": "card",
+      "style": {
+        "font": "token:typography.title"
+      },
+      "binds": [
+        {
+          "field": "product.price",
+          "on_null": "dash",
+          "format": "currency"
+        }
+      ],
+      "text_overflow": {
+        "max_lines": 1,
+        "behavior": "ellipsis"
+      }
+    },
+    {
+      "component_id": "empty_art",
+      "type": "empty_illustration",
+      "appears_in_states": [
+        "empty"
+      ],
+      "emphasis": "secondary",
+      "order": 1,
+      "parent": null,
+      "style": {
+        "pad": "token:spacing.lg"
+      }
+    },
+    {
+      "component_id": "retry_btn",
+      "type": "button",
+      "appears_in_states": [
+        "net_error"
+      ],
+      "emphasis": "primary",
+      "order": 1,
+      "parent": null,
+      "style": {
+        "bg": "token:color.primary"
+      },
+      "interaction": {
+        "trigger": "tap",
+        "action": "retry",
+        "target_state": "loading",
+        "disabled_when": null
+      },
+      "a11y": {
+        "label": "Thu lai",
+        "min_tap_target_ok": true
+      }
+    }
+  ],
+  "ad_slots": [],
+  "design_metrics_declared": {
+    "distinct_type_sizes": 2,
+    "distinct_colors": 2,
+    "spacing_keys_used": [
+      "sm",
+      "md",
+      "lg"
+    ],
+    "root_level_component_count": 4
+  }
+}

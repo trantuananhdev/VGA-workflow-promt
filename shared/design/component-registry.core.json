@@ -1,0 +1,11 @@
+{
+  "_comment": "SSOT thu vien UI cap app (project-scope), owner unit design-system. Sinh boi agents/designer/skills/component_discovery/SKILL.md. File nay khac shared/design/component-registry/<story_id>.json (thu muc, owner designer-screen, component dac thu tung story) — xem kernel/contracts/data-ownership.json muc _component_registry_split_why.",
+  "_entry_shape": "Moi phan tu core_components: {category, search_queries_used, chosen:{name,url}|null, verified_url, alternatives_considered (>=1 neu chosen!=null, moi ung vien co popularity_signal rieng), popularity_signal:{metric,value} (tieu chi phan dinh cuoi cung khi nhieu ung vien deu dat 3 tieu chi truoc), custom_needed, custom_note?}. designer-screen entries them field 'reused_from_core' (category da co o day, khong tu search lai) — xem component_discovery/SKILL.md.",
+  "schema_version": 1,
+  "tech_stack_snapshot": {
+    "platform": "",
+    "ui_framework": "",
+    "language": ""
+  },
+  "core_components": []
+}

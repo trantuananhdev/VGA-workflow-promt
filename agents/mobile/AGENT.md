@@ -15,6 +15,8 @@
 
 - Không tự đổi `api-contracts.json` — thấy vấn đề thì mở Sync Session với `cto`.
 - Không tự vẽ lại UX flow khác với output của `designer` — thấy bất hợp lý thì mở Sync Session với `designer`.
+- **(`mobile-screen`) Không bỏ qua field nào trong `screens/<story_id>.json`.** Hợp đồng đó đã qua Gate 5 (từng component được kiểm bằng `validate.py` mã `E13`-`E21`), nên mỗi field là **quyết định thiết kế đã kiểm**, không phải gợi ý. Bỏ `on_null` = ô trắng/chữ `null` trước mặt user; bỏ `text_overflow` = tên dài làm vỡ bố cục; bỏ `disabled_when` = bấm được lúc không nên bấm. Không lint/test nào bắt được các lỗi này. Thấy hợp đồng sai/thiếu → emit `doc_drift_detected`, KHÔNG tự sửa, KHÔNG để lại `TODO` im lặng.
+- **(`mobile-screen`) Không tự thay lib khác `registry_ref`** đã chọn trong `component-registry` — lựa chọn đó đã qua đánh giá tech-stack + độ phổ biến. Muốn đổi thì báo drift, không tự quyết.
 - **Không tự thêm permission ngoài phạm vi `architecture.md`/`system-spec.md`** — permission mới phải xuất phát từ quyết định của `cto`, không tự suy diễn "chắc sẽ cần" (least-privilege).
 - Không tự tích hợp SDK quảng cáo — đó là việc của agent `ads`.
 - Không báo "xong" 1 story nếu chưa qua đủ verify của `git_workflow` (PR mở + CI xanh).
@@ -22,7 +24,7 @@
 ## Input hợp lệ
 
 - (`mobile-shell`) Anchor-tag slice của `shared/architecture.md` + `shared/system-spec.md`
-- (`mobile-screen`) 1 node trong `kernel/memory/wbs.json` giao cho `mobile` (task_id cụ thể) + anchor-tag slice của `shared/contracts/api-contracts.json` + message handoff (cô đặc) từ `designer` (phase `designer-screen`, đã kèm `token_keys` — KHÔNG cần mở lại `tokens.json`)
+- (`mobile-screen`) 1 node trong `kernel/memory/wbs.json` giao cho `mobile` (task_id cụ thể) + anchor-tag slice của `shared/contracts/api-contracts.json` + message handoff (cô đặc) từ `designer` (phase `designer-screen`, đã kèm `token_keys` — KHÔNG cần mở lại `tokens.json`) + **`shared/design/screens/<story_id>.json`** (hợp đồng layout — **PHẢI mở và thực hiện từng field**, không phải "mở khi cần chi tiết") + `shared/design/component-registry/<story_id>.json` + `shared/design/component-registry.core.json` (lib được phép dùng)
 
 ## Output hợp lệ
 
@@ -35,7 +37,7 @@
 Tất cả nằm trong `agents/mobile/skills/` trừ `git_workflow` (dùng chung):
 
 - Phase `mobile-shell`: `setup_native_shell/`, `setup_push_deep_link/`, `check_platform_compliance/`
-- Phase `mobile-screen`: `run_lint/`, `run_unit_test/` (STACK BINDING — điền lệnh thật khi chốt framework)
+- Phase `mobile-screen`: `implement_screen_contract/` (**gọi TRƯỚC**: dịch layout JSON → code, từng field một), rồi `run_lint/`, `run_unit_test/` (STACK BINDING — điền lệnh thật khi chốt framework)
 - Cả 2 phase: `git_workflow` (dùng chung với `dev-be`/`ads` — xem `skills/git_workflow/SKILL.md`)
 
 ## Khi API contract chưa có backend thật để test
@@ -49,7 +51,7 @@ Mở Sync Session với `cto` (`type: request`, `max_turns: 3`) — không tự 
 ## Verification bắt buộc trước khi báo "xong"
 
 - (`mobile-shell`): build native project thành công trên mọi platform mục tiêu — log build đính kèm. `shared/capabilities/native.json` liệt kê ĐÚNG permission đã khai trong manifest/plist thật. `check_platform_compliance` trả `violations: []` — KHÔNG mở khoá `mobile-screen` nếu còn vi phạm (sửa shell sau khi đã build hàng loạt story lên trên là rất đắt).
-- (`mobile-screen`): chạy `run_lint/` + `run_unit_test/` (xem STACK BINDING trong từng SKILL.md)
+- (`mobile-screen`): **trước tiên** đối chiếu hợp đồng layout bằng cách **đếm**, không bằng cảm giác — số UI state trong code = số phần tử `states[]`; số component đã dựng = số phần tử `components[]`; mọi `binds[]` có xử lý `on_null`; mọi control có `disabled_when` đã bind `enabled` thật; mọi input có validation client-side hiện đúng `error_state`; mọi text/badge có giới hạn dòng; không literal màu/spacing nào trong code UI. Checklist đầy đủ ở `skills/implement_screen_contract/SKILL.md`. **Rồi** chạy `run_lint/` + `run_unit_test/` (xem STACK BINDING trong từng SKILL.md)
 ```
 <lint command>      # 0 lỗi
 <unit test command> # pass, đính kèm log thật

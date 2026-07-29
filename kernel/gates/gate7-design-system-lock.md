@@ -27,9 +27,10 @@ Trộn 2 trạng thái này lại sẽ làm `gate.consecutive_fail` mất nghĩa
 3. **Ràng buộc accessibility thoả với phương án đã chọn** theo `tokens.json` → `a11y_contract`: contrast body ≥ 4.5:1, large text ≥ 3:1, mọi cặp `on_X`/`X` đạt ngưỡng, spacing scale cho phép tap target ≥ 44pt (iOS) / 48dp (Material). Handoff phải kèm **số đo thật** từng cặp màu, không phải câu "đã kiểm tra".
 4. **`theme-preview.html` tồn tại và render đủ trạng thái:** mỗi phương án có ít nhất 1 màn list, 1 card, 1 CTA chính, 1 nút phụ, 1 **trạng thái lỗi**, 1 **trạng thái disabled/loading**. Thiếu trạng thái lỗi = người chọn theo cảm giác màu chứ không thấy app dùng thật ra sao — đúng lý do file HTML này tồn tại thay vì 1 bảng màu.
 5. **Mọi phương án cùng tập key:** mọi theme trong `themes` phải có **y hệt** tập key ở cả 5 nhóm. Lệch key = đổi theme về sau làm layout vỡ, và Gate 5 điều 5 của story sẽ fail hàng loạt mà nguyên nhân gốc nằm ở đây.
-6. **Handoff body có đủ field cô đặc** theo `kernel/rules/handoff-contracts.md` cạnh `design-system → designer-screen`: `chosen_theme`, `token_keys` (danh sách key phẳng theo nhóm), `a11y_measured`, `locked_at`.
+6. **Handoff body có đủ field cô đặc** theo `kernel/rules/handoff-contracts.md` cạnh `design-system → designer-screen`: `chosen_theme`, `token_keys` (danh sách key phẳng theo nhóm), `a11y_measured`, `locked_at`, `core_components_chosen`.
+7. **`shared/design/component-registry.core.json` tồn tại, parse được, và mọi entry hợp lệ:** mỗi entry có `chosen.url` đã xác minh (`verified_url: true`) HOẶC `chosen: null` + `custom_needed: true` kèm `custom_note`. Không có entry nào thiếu cả 2 (chưa xác minh nhưng cũng chưa đánh dấu custom = chưa xong, xem `agents/designer/skills/component_discovery/SKILL.md`).
 
-Điều 6 quan trọng với tầng network: thiếu `token_keys` thì mọi node `designer-screen` phải mở lại `tokens.json` — mất đúng lợi ích "cô đặc message" mà hợp đồng cạnh này thiết kế ra.
+Điều 6 quan trọng với tầng network: thiếu `token_keys`/`core_components_chosen` thì mọi node `designer-screen` phải mở lại `tokens.json`/`component-registry.core.json` — mất đúng lợi ích "cô đặc message" mà hợp đồng cạnh này thiết kế ra. Điều 7 chặn rủi ro lớn nhất của `component_discovery`: AI liệt kê 1 thư viện không có thật rồi `mobile-screen` build theo mới phát hiện ra.
 
 ---
 
@@ -58,7 +59,7 @@ python kernel/tools/resume.py PROJ-design-system --note "cả 3 quá lạnh, kh�
 
 ---
 
-## Khi FAIL (điều 2-6 sai, hoặc người từ chối cả 2-4 phương án)
+## Khi FAIL (điều 2-7 sai, hoặc người từ chối cả 2-4 phương án)
 
 Trả về `design-system` kèm **danh sách cụ thể** cặp màu nào không đạt contrast / key nào lệch giữa các theme / trạng thái nào thiếu trong preview — không phải "chưa đủ". Tăng `gate.consecutive_fail` như mọi gate khác; hết lượt thì → `waiting_human` + escalate kênh `design`.
 

@@ -18,6 +18,7 @@
 ## Output hợp lệ
 
 - `shared/architecture.md`, `shared/db-schema.md`, `shared/contracts/api-contracts.json`, `shared/system-spec.md` — mỗi block gắn anchor tag tương ứng
+- `shared/contracts/tech-stack.json` — bản SSOT **máy đọc** của tech stack đã chốt (platform/ui_framework/language/build_system/min_sdk), entry `story_id: "PROJ"`. Đây là phần cô đặc, cấu trúc hoá của phần "Tech stack đã chọn" đã ghi trong `architecture.md` — ghi cả 2 nơi, không thay thế nhau: `architecture.md` cho người đọc, `tech-stack.json` cho `designer`/`component_discovery` khoanh vùng tìm thư viện đúng platform mà không phải tự suy diễn từ prose.
 - Emit `type: response` xác nhận khả thi (Gate 1) hoặc `type: request` nếu cần BA làm rõ thêm
 
 ## Skill được phép gọi

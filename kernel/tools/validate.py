@@ -657,7 +657,7 @@ def check_crossrefs(mans, profile):
                                f"-> context_compile se khong bao gio trich duoc cho role nay")
 
 
-# ─────────────────────────── H. Tien de Gate 1 cho nhanh Design (E9-E11) ───────────────────────────
+# ─────────────────────────── H. Tien de Gate 1 cho nhanh Design (E9-E12) ───────────────────────────
 _PROJ_ANCHOR_RE = re.compile(r"<!--\s*tier:2\s+role:([a-z0-9,\-]+)\s+story:([A-Za-z0-9\-]+)\s*-->")
 
 
@@ -717,6 +717,332 @@ def check_design_prereqs():
                         f"se khong biet nap domain skill nao, se tu doan thay vi dung tri thuc "
                         f"domain that. Chay agents/ba/skills/classify_domain/ (xem SKILL.md) "
                         f"truoc khi Gate 1 pass.")
+
+    ts_path = rel("shared", "contracts", "tech-stack.json")
+    if not os.path.exists(ts_path):
+        err("E12", "shared/contracts/tech-stack.json: khong ton tai -> design-system se khong "
+                    "biet khoanh vung tim thu vien UI theo platform nao khi chay skill "
+                    "component_discovery. cto phai ghi file nay TRUOC khi Gate 1 pass "
+                    "(agents/cto/AGENT.md muc Output hop le).")
+    else:
+        try:
+            ts = json.load(open(ts_path, encoding="utf-8"))
+            proj = next((e for e in ts.get("entries", [])
+                         if isinstance(e, dict) and e.get("story_id") == "PROJ"), None)
+            if proj is None:
+                err("E12", "shared/contracts/tech-stack.json: khong co entry story_id='PROJ' -> "
+                            "design-system se nhan Tier 2 rong cho tech stack.")
+            elif not (proj.get("platform") and proj.get("ui_framework") and proj.get("language")):
+                err("E12", "shared/contracts/tech-stack.json: entry 'PROJ' thieu platform/"
+                            "ui_framework/language -> khong du de khoanh vung tim thu vien UI.")
+        except Exception as e:
+            err("E12", f"shared/contracts/tech-stack.json: JSON khong parse duoc — {e}")
+
+
+# ─────────── I. Screen layout: tung component kiem rieng (E13-E21) ───────────
+# Cuong che kernel/contracts/screen-layout.schema.json o phan JSON Schema KHONG bieu dien duoc:
+# rang buoc LIEN entry (ref co ton tai that khong, parent co tao vong khong) va static design
+# metrics (dung 1 primary moi state, so co chu / so mau / nhip spacing).
+#
+# VI SAO O DAY: truoc day Gate 5 chi kiem DEM o muc man hinh + tinh hop le cua token ref.
+# Khong co gi kiem tung COMPONENT ben trong -> do la cho sinh "bug vat": field null khong ai
+# xu ly, nut bam dan toi state khong ton tai, input khong validation, text dai lam vo bo cuc.
+# Ca 2 lop loi nay (logic + hien thi) lo ra o Gate 4 (QA) hoac o nguoi dung that, trong khi
+# chung kiem duoc ngay o tang du lieu — TRUOC khi mobile-screen sinh 1 dong code nao.
+#
+# NGUYEN TAC do luong: metric duoc SUY RA tu style that cua tung component, KHONG tin
+# design_metrics_declared. Field declared chi dung de doi chieu: khai lech voi thuc te nghia la
+# agent bao "da do" ma khong do -> dung lop loi ma Gate 7 dieu 3 da chan cho contrast.
+
+_CONTROL_TYPES = {"button", "icon_button", "input", "select", "toggle", "slider",
+                  "checkbox", "radio", "search_field"}
+_INPUT_TYPES = {"input", "select", "search_field"}
+_TEXT_TYPES = {"text", "badge"}
+_OVERLAY_TYPES = {"sheet", "dialog", "snackbar", "tooltip", "menu"}
+_ACTION_NEEDS_TARGET = {"navigate", "submit", "retry"}
+
+
+def _registry_categories():
+    """Tap category da khai trong component-registry (core + per-story). Rong neu chua co file."""
+    cats = set()
+    core = rel("shared", "design", "component-registry.core.json")
+    if os.path.exists(core):
+        try:
+            for e in (json.load(open(core, encoding="utf-8")).get("core_components") or []):
+                if isinstance(e, dict) and e.get("category"):
+                    cats.add(e["category"])
+        except Exception:
+            pass  # loi parse registry da duoc bao o cho khac, khong bao trung
+    d = rel("shared", "design", "component-registry")
+    if os.path.isdir(d):
+        for f in glob.glob(os.path.join(d, "*.json")):
+            try:
+                data = json.load(open(f, encoding="utf-8"))
+                entries = data if isinstance(data, list) else (data.get("components") or [])
+                for e in entries:
+                    if isinstance(e, dict) and e.get("category"):
+                        cats.add(e["category"])
+            except Exception:
+                pass
+    return cats
+
+
+def _parent_cycle(comps):
+    """Tra component_id dau tien nam trong 1 vong parent, hoac None."""
+    parent = {c["component_id"]: c.get("parent") for c in comps if c.get("component_id")}
+    for start in parent:
+        seen, cur = set(), start
+        while cur is not None:
+            if cur in seen:
+                return start
+            seen.add(cur)
+            cur = parent.get(cur)
+            if cur is not None and cur not in parent:
+                break  # parent tro ra ngoai -> da bao o E14, khong tinh la vong
+    return None
+
+
+def check_screen_layouts(limits):
+    d = rel("shared", "design", "screens")
+    files = sorted(glob.glob(os.path.join(d, "*.json"))) if os.path.isdir(d) else []
+    if not files:
+        warn("I1", "shared/design/screens/ khong co layout nao — binh thuong voi repo template "
+                   "(designer-screen chua chay). Kiem tra tung component se bo qua.")
+        return
+
+    dl = ((limits or {}).get("design") or {})
+    max_type = dl.get("max_distinct_type_sizes_per_screen", 6)
+    max_color = dl.get("max_distinct_colors_per_screen", 8)
+    max_root = dl.get("max_root_level_components", 9)
+    max_span = dl.get("max_spacing_scale_span", 4)
+    scale_order = dl.get("spacing_scale_order") or ["xs", "sm", "md", "lg", "xl", "xxl"]
+    max_primary = dl.get("max_primary_emphasis_per_state", 1)
+    registry_cats = _registry_categories()
+
+    for path in files:
+        name = os.path.basename(path)
+        try:
+            layout = json.load(open(path, encoding="utf-8"))
+        except Exception as e:
+            err("E13", f"shared/design/screens/{name}: JSON khong parse duoc — {e}")
+            continue
+        if not isinstance(layout, dict):
+            err("E13", f"shared/design/screens/{name}: goc phai la object")
+            continue
+
+        # Key la o goc: schema co additionalProperties:false nen key ngoai danh sach nay la VI PHAM
+        # HOP DONG. Kiem o day vi validator khong chay JSON Schema — thieu no thi 1 file ghi
+        # 'data_bindings' phang o goc (cach viet CU, truoc khi binding chuyen vao tung component)
+        # se lot im lang: vua sai schema vua khong ai bao.
+        allowed_root = {"schema_version", "screen_id", "states", "components", "ad_slots",
+                        "design_metrics_declared"}
+        unknown = {k for k in layout if not k.startswith("_")} - allowed_root
+        if unknown:
+            err("E13", f"shared/design/screens/{name}: key la o goc {sorted(unknown)} — schema "
+                       f"khong cho phep (additionalProperties:false). Binding nam TRONG tung "
+                       f"component (components[].binds[]), khong phai mang 'data_bindings' phang.")
+
+        expect_id = os.path.splitext(name)[0]
+        if layout.get("screen_id") != expect_id:
+            err("E13", f"shared/design/screens/{name}: screen_id={layout.get('screen_id')!r} khong "
+                       f"khop ten file (phai la {expect_id!r}) -> mobile-screen se lay sai story")
+
+        states = layout.get("states")
+        comps = layout.get("components")
+        if not isinstance(states, list) or not states:
+            err("E13", f"shared/design/screens/{name}: thieu mang 'states' khong rong")
+            continue
+        if not isinstance(comps, list) or not comps:
+            err("E13", f"shared/design/screens/{name}: thieu mang 'components' khong rong")
+            continue
+
+        state_ids, dup_states = set(), set()
+        for s in states:
+            if not isinstance(s, dict) or not s.get("state_id"):
+                err("E13", f"shared/design/screens/{name}: co entry states thieu state_id")
+                continue
+            if s["state_id"] in state_ids:
+                dup_states.add(s["state_id"])
+            state_ids.add(s["state_id"])
+        if dup_states:
+            err("E13", f"shared/design/screens/{name}: state_id trung {sorted(dup_states)}")
+
+        comp_ids, dup_comps = set(), set()
+        for c in comps:
+            if not isinstance(c, dict) or not c.get("component_id"):
+                err("E13", f"shared/design/screens/{name}: co entry components thieu component_id")
+                continue
+            if c["component_id"] in comp_ids:
+                dup_comps.add(c["component_id"])
+            comp_ids.add(c["component_id"])
+        if dup_comps:
+            err("E13", f"shared/design/screens/{name}: component_id trung {sorted(dup_comps)} "
+                       f"-> parent/target tro tinh khong xac dinh")
+
+        # state loi phai co duong ra (JSON Schema da co, kiem lai vi validator khong chay schema)
+        for s in states:
+            if not isinstance(s, dict):
+                continue
+            kind = s.get("kind")
+            if kind and kind != "success" and not s.get("entered_when"):
+                err("E16", f"shared/design/screens/{name}: state {s.get('state_id')!r} kind={kind} "
+                           f"thieu 'entered_when' -> dev phai tu doan khi nao state nay xay ra")
+            if kind in ("error", "offline", "permission_denied", "session_expired") \
+                    and not s.get("recovery_action"):
+                err("E16", f"shared/design/screens/{name}: state {s.get('state_id')!r} kind={kind} "
+                           f"thieu 'recovery_action' -> state loi khong co duong ra la bug UX")
+
+        type_keys, color_keys, spacing_keys = set(), set(), set()
+        primary_per_state = {sid: 0 for sid in state_ids}
+        root_count = 0
+
+        for c in comps:
+            if not isinstance(c, dict):
+                continue
+            cid = c.get("component_id", "?")
+            ctype = c.get("type")
+            where = f"shared/design/screens/{name}: component {cid!r}"
+
+            # --- tham chieu lien entry (lop loi LOGIC) ---
+            ais = c.get("appears_in_states")
+            if not isinstance(ais, list) or not ais:
+                err("E14", f"{where} thieu 'appears_in_states' -> khong state nao render no "
+                           f"(component chet)")
+            else:
+                for sid in ais:
+                    if sid not in state_ids:
+                        err("E14", f"{where} appears_in_states tro toi state {sid!r} KHONG ton tai")
+                    elif c.get("emphasis") == "primary":
+                        primary_per_state[sid] = primary_per_state.get(sid, 0) + 1
+
+            if c.get("parent") is None:
+                root_count += 1
+            elif c["parent"] not in comp_ids:
+                err("E14", f"{where} parent={c['parent']!r} KHONG ton tai")
+            elif c["parent"] == cid:
+                err("E15", f"{where} co parent tro vao chinh no")
+
+            rref = c.get("registry_ref")
+            if rref and registry_cats and rref not in registry_cats:
+                err("E14", f"{where} registry_ref={rref!r} khong co trong component-registry "
+                           f"-> mobile-screen se cai 1 dependency khong ai chon")
+
+            it = c.get("interaction")
+            if ctype in _CONTROL_TYPES and not isinstance(it, dict):
+                err("E16", f"{where} type={ctype} nhung thieu 'interaction' -> khong biet bam vao "
+                           f"thi xay ra gi")
+            if isinstance(it, dict):
+                act = it.get("action")
+                if act in _ACTION_NEEDS_TARGET and not (it.get("target_state") or it.get("target_screen")):
+                    err("E16", f"{where} action={act!r} nhung khong co target_state/target_screen "
+                               f"-> hanh dong tro vao hu khong")
+                ts = it.get("target_state")
+                if ts and ts not in state_ids:
+                    err("E14", f"{where} target_state={ts!r} KHONG ton tai trong states")
+                if ctype in _INPUT_TYPES:
+                    vals = it.get("validation")
+                    if not isinstance(vals, list) or not vals:
+                        err("E16", f"{where} type={ctype} nhung khong co 'validation' -> input rac "
+                                   f"di thang xuong backend")
+                    else:
+                        for v in vals:
+                            es = v.get("error_state") if isinstance(v, dict) else None
+                            if es and es not in state_ids:
+                                err("E14", f"{where} validation.error_state={es!r} KHONG ton tai")
+                if "disabled_when" not in it:
+                    err("E16", f"{where} thieu 'disabled_when' (dat null neu LUON bam duoc) "
+                               f"-> khong khai tuong minh la nguon loi 'bam duoc luc khong nen bam'")
+
+            # --- lop loi HIEN THI ---
+            for b in (c.get("binds") or []):
+                if not isinstance(b, dict):
+                    continue
+                if not b.get("on_null"):
+                    err("E17", f"{where} bind field={b.get('field')!r} thieu 'on_null' -> field rong "
+                               f"se ra o trang / chu 'null' truoc mat nguoi dung")
+                if b.get("on_null") == "fallback_text" and not b.get("fallback_text"):
+                    err("E17", f"{where} bind field={b.get('field')!r} on_null=fallback_text nhung "
+                               f"khong co noi dung fallback_text")
+
+            if ctype in _TEXT_TYPES and not isinstance(c.get("text_overflow"), dict):
+                err("E17", f"{where} type={ctype} thieu 'text_overflow' -> noi dung dai se lam vo "
+                           f"bo cuc, mock data ten ngan khong bao gio phat hien ra")
+
+            a11y = c.get("a11y")
+            if ctype in _CONTROL_TYPES:
+                if not isinstance(a11y, dict) or a11y.get("min_tap_target_ok") is not True:
+                    err("E16", f"{where} type={ctype} thieu a11y.min_tap_target_ok=true "
+                               f"(nguong o tokens.json -> a11y_contract)")
+            if ctype == "icon_button" and not (isinstance(a11y, dict) and a11y.get("label")):
+                err("E16", f"{where} icon_button khong co a11y.label -> o trong voi screen reader")
+
+            if c.get("order") is None and ctype not in _OVERLAY_TYPES:
+                err("E16", f"{where} thieu 'order' (chi overlay duoc phep null) -> thu tu doc "
+                           f"khong xac dinh, moi lan sinh code co the ra 1 thu tu khac")
+
+            # --- token ref + thu thap metric tu style THAT ---
+            style = c.get("style") or {}
+            if not isinstance(style, dict):
+                err("E18", f"{where} 'style' phai la object")
+                continue
+            for k, v in style.items():
+                if not isinstance(v, str) or not v.startswith("token:"):
+                    err("E18", f"{where} style.{k} = {v!r} khong phai tham chieu 'token:<nhom>.<key>' "
+                               f"-> hard-code, Gate 5 dieu 5")
+                    continue
+                ref = v[len("token:"):]
+                if ref.startswith("typography."):
+                    type_keys.add(ref)
+                elif ref.startswith("color."):
+                    color_keys.add(ref)
+                elif ref.startswith("spacing."):
+                    spacing_keys.add(ref.split(".", 1)[1])
+
+        # Nguong la TRAN (<=), khong phai dang thuc: 0 primary hop le voi man danh sach/so sanh
+        # (nang 1 card len la pha chuc nang so sanh — xem limits.json _primary_why_not_exactly_one).
+        for sid, n in primary_per_state.items():
+            if n > max_primary:
+                err("E19", f"shared/design/screens/{name}: state {sid!r} co {n} component "
+                           f"emphasis=primary (toi da {max_primary}) -> nhieu CTA tranh tieu diem, "
+                           f"nguoi dung khong biet nen bam cai nao")
+
+        if len(type_keys) > max_type:
+            err("E20", f"shared/design/screens/{name}: dung {len(type_keys)} co chu khac nhau "
+                       f"(nguong {max_type}) -> nhieu typographic: {sorted(type_keys)}")
+        if len(color_keys) > max_color:
+            err("E20", f"shared/design/screens/{name}: dung {len(color_keys)} token mau khac nhau "
+                       f"(nguong {max_color}) -> bang mau khong nhat quan: {sorted(color_keys)}")
+        if root_count > max_root:
+            err("E20", f"shared/design/screens/{name}: {root_count} component o goc (parent=null, "
+                       f"nguong {max_root}) -> man hinh khong co cau truc phan cap")
+
+        idx = [scale_order.index(k) for k in spacing_keys if k in scale_order]
+        if idx and (max(idx) - min(idx)) > max_span:
+            err("E20", f"shared/design/screens/{name}: spacing dung {sorted(spacing_keys)} trai "
+                       f"{max(idx) - min(idx)} bac tren scale (nguong {max_span}) -> mat nhip")
+
+        decl = layout.get("design_metrics_declared")
+        if isinstance(decl, dict):
+            for field, actual in (("distinct_type_sizes", len(type_keys)),
+                                  ("distinct_colors", len(color_keys)),
+                                  ("root_level_component_count", root_count)):
+                if decl.get(field) is not None and decl[field] != actual:
+                    err("E20", f"shared/design/screens/{name}: design_metrics_declared.{field}="
+                               f"{decl[field]} nhung thuc te dem duoc {actual} -> agent bao 'da do' "
+                               f"ma khong do that")
+
+        for a in (layout.get("ad_slots") or []):
+            if not isinstance(a, dict):
+                continue
+            bad = [s.get("state_id") for s in states
+                   if isinstance(s, dict) and s.get("kind") in ("error", "loading")
+                   and s.get("state_id") in (a.get("appears_in_states") or [])]
+            if bad:
+                err("E21", f"shared/design/screens/{name}: ad_slot {a.get('slot_id')!r} hien o state "
+                           f"{bad} (kind error/loading) -> chen quang cao len man loi/dang tai")
+            if a.get("region") == "inline" and not a.get("after_component_id"):
+                err("E21", f"shared/design/screens/{name}: ad_slot {a.get('slot_id')!r} region=inline "
+                           f"nhung khong co after_component_id -> khong biet chen sau cai gi")
 
 
 # ─────────────────────────── F. Single-writer invariant ───────────────────────────
@@ -979,6 +1305,7 @@ def main():
         check_boot(boot_schema, nodes, units, mans, dag)
     check_crossrefs(mans, profile)
     check_design_prereqs()
+    check_screen_layouts(limits)
     if args.selftest and units:
         selftest(units, mans)
 

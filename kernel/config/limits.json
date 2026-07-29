@@ -22,5 +22,19 @@
     "_tier0_why": "kernel/memory/today.md được nạp vào MỌI agent. Digest phình to là thuế đánh lên toàn hệ thống, không phải lên 1 agent. digest.py phải giữ dưới ngưỡng này.",
     "token_chars_per_token": 3.0,
     "_token_why": "Uoc luong token = ceil(so ky tu / gia tri nay). KHONG dung tokenizer that de giu stdlib-only, portable moi tool. Chon 3.0 (thap hon thuc te tieng Anh ~4) de UOC LUONG CAO HON thuc -> fail-safe: tha bao vuot ngan sach oan hon la de agent that su bi tran context. Tieng Viet co dau ton token hon nen 3.0 la co y."
+  },
+  "design": {
+    "_note": "Nguong cho static design metrics tren shared/design/screens/<story>.json (validate.py nhom I, ma E13+). Doc cung schema kernel/contracts/screen-layout.schema.json -> design_metrics_declared.",
+    "_threshold_philosophy": "Cac so nay dat o muc 'gan nhu chac chan SAI', KHONG phai muc 'ly tuong'. Ly do: gate CHAN pipeline thi phai dua tren su chac chan, khong the chan mot thiet ke hop le chi vi no khong toi uu. Vi du ly tuong la 3-4 co chu moi man, nhung nguong chan dat o 6 — vuot 6 thi gan nhu chac la nhieu typographic, con 5 thi con tranh luan duoc. Phan tinh chinh tham my (5 vs 4 co chu) thuoc ve NGUOI o Gate 7 va o buoc review mock, khong thuoc ve validator.",
+    "max_distinct_type_sizes_per_screen": 6,
+    "max_distinct_colors_per_screen": 8,
+    "max_root_level_components": 9,
+    "_root_why": "Component co parent=null qua nhieu = man hinh khong co cau truc phan cap, moi khoi deu ngang hang nen mat khong biet nhin dau truoc.",
+    "max_spacing_scale_span": 4,
+    "_spacing_why": "Cac key spacing dung trong 1 man phai nam trong mot dai LIEN KE cua scale (vd sm/md/lg), khong nhay loan xs + xxl. Span = khoang cach giua key nho nhat va lon nhat theo thu tu spacing_scale_order.",
+    "spacing_scale_order": ["xs", "sm", "md", "lg", "xl", "xxl"],
+    "max_primary_emphasis_per_state": 1,
+    "_primary_why": "NHIEU NHAT 1 component emphasis=primary moi state. 2 primary = 2 CTA tranh tieu diem — day la loi hierarchy pho bien nhat va la thu rule nay sinh ra de chan.",
+    "_primary_why_not_exactly_one": "Ban dau dat 'DUNG 1' va do la SAI — phat hien khi doi chieu voi agents/designer/skills/design_patterns/e-commerce-marketplace/SKILL.md muc 2: man DANH SACH khong nen co primary nao, vi nang 1 card len tren cac card khac la pha chinh chuc nang so sanh cua man hinh. Ep phai co 1 primary o do se buoc designer dung 1 primary GIA. Vi vay nguong la tran (<=1), khong phai dang thuc (==1): 0 primary la hop le voi man browse/so sanh, con 2 primary thi khong hop le voi bat ky man nao."
   }
 }

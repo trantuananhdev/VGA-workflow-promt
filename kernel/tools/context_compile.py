@@ -162,6 +162,7 @@ JSON_SHAPES = [
     ("shared/contracts/api-contracts.json", "endpoints", ["cto", "dev-be", "mobile", "qa"]),
     ("shared/capabilities/native.json", "permissions", ["mobile", "ads", "qa", "devops"]),
     ("shared/contracts/domain-map.json", "stories", ["designer"]),
+    ("shared/contracts/tech-stack.json", "entries", ["designer"]),
 ]
 
 # Khoa lat cat cho node KHONG thuoc 1 story (scope=project/release).
