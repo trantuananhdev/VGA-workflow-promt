@@ -23,7 +23,7 @@
 
 **2. Tông cảm xúc mong muốn:** <2-3 tính từ> — **KHÔNG** muốn: <2-3 tính từ phản đề>
 
-**3. App tham chiếu (nếu là bài clone/làm giống):** <tên app gốc + giống tới mức nào: giống hoàn toàn | giống luồng nhưng khác nhận diện | chỉ lấy cảm hứng> — hoặc `không có`
+**3. App tham chiếu (nếu là bài clone/làm giống):** <tên app gốc + giống tới mức nào: giống hoàn toàn | giống luồng nhưng khác nhận diện | chỉ lấy cảm hứng> — hoặc `không có`. Có ảnh chụp thật thì đặt vào `shared/design/references/` (xem README ở đó), **không** dán ảnh vào file này.
 
 **4. Ràng buộc nhận diện:** <màu/logo/font bắt buộc từ brand sẵn có> — hoặc `không có, design-system được tự đề xuất`
 

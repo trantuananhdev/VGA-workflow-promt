@@ -21,6 +21,7 @@
     "shared/design/tokens.json": "design-system",
     "shared/design/theme-preview.html": "design-system",
     "shared/design/theme-choice.json": "__human__",
+    "shared/design/references/": "__human__",
     "shared/design/screens/": "designer-screen",
     "shared/capabilities/native.json": "mobile-shell",
     "shared/capabilities/ads.json": "ads-setup",
