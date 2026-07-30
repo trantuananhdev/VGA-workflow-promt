@@ -1,0 +1,37 @@
+{
+  "open_splash":            "ca-app-pub-9405071173323068/7681972834",
+  "open_all":               "ca-app-pub-9405071173323068/3518648577",
+  "app_open":               "ca-app-pub-9405071173323068/7681972834",
+  "inter_splash":           "ca-app-pub-9405071173323068/5314524519",
+  "splash_uninstall":       "ca-app-pub-9405071173323068/1187998706",
+
+  "native_keep_user":       "ca-app-pub-9405071173323068/6638646258",
+  "native_survey_user":     "ca-app-pub-9405071173323068/3820911227",
+  "native_exit_app":        "ca-app-pub-9405071173323068/8254980252",
+
+  "native_language":        "ca-app-pub-9405071173323068/4001442847",
+  "native_language_select": "ca-app-pub-9405071173323068/8052368498",
+  "native_intro1":          "ca-app-pub-9405071173323068/6512056115",
+  "native_intro2":          "ca-app-pub-9405071173323068/6283423035",
+  "native_intro3":          "ca-app-pub-9405071173323068/8236201323",
+  "native_intro4":          "ca-app-pub-9405071173323068/5610037986",
+  "native_permission":      "ca-app-pub-9405071173323068/9605123317",
+  "native_home":            "ca-app-pub-9405071173323068/6440325387",
+  "native_scan_update":     "ca-app-pub-9405071173323068/2572811105",
+  "native_update_available":"ca-app-pub-9405071173323068/3657259691",
+  "native_user_app":        "ca-app-pub-9405071173323068/1259729438",
+  "native_user_detail_app": "ca-app-pub-9405071173323068/7404933014",
+  "native_app_manager":     "ca-app-pub-9405071173323068/6091851342",
+  "native_app_detail_manager":"ca-app-pub-9405071173323068/8946647762",
+  "native_system_app":      "ca-app-pub-9405071173323068/7213361325",
+  "native_uninstall_app":   "ca-app-pub-9405071173323068/5900279657",
+  "native_device_info":     "ca-app-pub-9405071173323068/2397138598",
+  "native_history":         "ca-app-pub-9405071173323068/9357711304",
+  "native_setting":         "ca-app-pub-9405071173323068/6739286823",
+
+  "inter_home":             "ca-app-pub-9405071173323068/7021789631",
+  "inter_uninstall":        "ca-app-pub-9405071173323068/1769462956",
+  "native_inter_splash":    "ca-app-pub-9405071173323068/1670792971",
+  "native_inter_home":      "ca-app-pub-9405071173323068/8446551946",
+  "native_inter_uninstall": "ca-app-pub-9405071173323068/2133827400"
+}

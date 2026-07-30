@@ -119,7 +119,7 @@ Orchestrator chỉ tương tác với Agent qua **2 kênh**: (a) boot context kh
 | **Gate 2** | `gate2-wbs-valid.md` | `wbs.json` không vi phạm dependency grammar trong `routing-table.md` | Sau `generate_wbs` |
 | **Gate 3** | `gate3-dev-to-qa.md` | Lint/test pass 0 lỗi, PR mở + CI xanh (`git_workflow`) | 1 chiều, có proof (log) |
 | **Gate 4** | `gate4-qa-to-release.md` | Test coverage đạt ngưỡng, 0 crash khởi động, log pass đính kèm | 1 chiều, có proof |
-| **Gate 5** | `gate5-design-complete.md` | Đủ UI state, `binds[].field` + **token** trỏ key tồn tại thật, domain tag hợp lệ, **từng component kiểm riêng** (`validate.py` mã `E13`-`E21`) | 1 chiều, lookup + tool |
+| **Gate 5** | `gate5-design-complete.md` | Đủ UI state, `binds[].field` + **token** trỏ key tồn tại thật, domain tag hợp lệ, **từng component kiểm riêng** (`validate.py` mã `E13`-`E22`) | 1 chiều, lookup + tool |
 | **Gate 6** | `gate6-release-verified.md` | Release đã lên chợ + monitoring nhận event thật | 1 chiều, có proof |
 | **Gate 7** | `gate7-design-system-lock.md` | **NGƯỜI đã chọn 1 phương án theme** + token đã khoá đúng lựa chọn + a11y đạt ngưỡng | **Cần người quyết định** |
 

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Remote Config DEFAULTS của app (đăng ký qua setAppDefaultsFromXml ở MyApplication).
+  LƯU Ý: ad-unit-id KHÔNG để ở đây — lib đọc qua key `ads_config` (assets/default_ads_config.json).
+  Đây chỉ là cờ bật/tắt + tham số hành vi quảng cáo của app (đọc qua Remote.instance).
+-->
+<defaultsMap>
+    <!-- Cờ bật từng placement (premium override ẩn ad: xem Remote.getBoolean) -->
+    <entry><key>native_language_enable</key><value>true</value></entry>
+    <entry><key>native_language_select_enable</key><value>true</value></entry>
+    <entry><key>native_intro1_enable</key><value>true</value></entry>
+    <entry><key>native_intro2_enable</key><value>true</value></entry>
+    <entry><key>native_intro3_enable</key><value>true</value></entry>
+    <entry><key>native_intro4_enable</key><value>true</value></entry>
+    <entry><key>native_permission_enable</key><value>true</value></entry>
+    <entry><key>native_home_enable</key><value>true</value></entry>
+    <entry><key>native_scan_update_enable</key><value>true</value></entry>
+    <entry><key>native_update_available_enable</key><value>true</value></entry>
+    <entry><key>native_user_app_enable</key><value>true</value></entry>
+    <entry><key>native_user_detail_app_enable</key><value>true</value></entry>
+    <entry><key>native_app_manager_enable</key><value>true</value></entry>
+    <entry><key>native_app_detail_manager_enable</key><value>true</value></entry>
+    <entry><key>native_system_app_enable</key><value>true</value></entry>
+    <entry><key>native_uninstall_app_enable</key><value>true</value></entry>
+    <entry><key>native_device_info_enable</key><value>true</value></entry>
+    <entry><key>native_history_enable</key><value>true</value></entry>
+    <entry><key>native_setting_enable</key><value>true</value></entry>
+    <!-- Inter: bật/tắt + tỉ lệ (showCount % ratio == 0) + max/ngày (port kịch bản RN vga31b:
+         inter_screen ratio=4 max=20; inter_splash ratio=3; native_inter ratio=2 max=20) -->
+    <entry><key>inter_home_enable</key><value>true</value></entry>
+    <entry><key>inter_home_ratio</key><value>4</value></entry>
+    <entry><key>inter_home_max</key><value>20</value></entry>
+    <entry><key>inter_uninstall_enable</key><value>true</value></entry>
+    <entry><key>inter_uninstall_ratio</key><value>4</value></entry>
+    <entry><key>inter_uninstall_max</key><value>20</value></entry>
+
+    <!-- Native-inter (ad fullscreen fallback khi inter không hiện) — native_inter_screen 2/20 -->
+    <entry><key>native_inter_home_enable</key><value>true</value></entry>
+    <entry><key>native_inter_home_ratio</key><value>2</value></entry>
+    <entry><key>native_inter_home_max</key><value>20</value></entry>
+    <entry><key>native_inter_uninstall_enable</key><value>true</value></entry>
+    <entry><key>native_inter_uninstall_ratio</key><value>2</value></entry>
+    <entry><key>native_inter_uninstall_max</key><value>20</value></entry>
+
+    <!-- Vị trí native trên 4 slide Intro (1=show inline, 11/22/33/44=modal) -->
+    <!-- positionIntrol (A/B): N=native inline slide N, NN(11/22/33/44)=native modal toàn màn (port RN vga31b). -->
+    <entry><key>positionIntrol</key><value>[[1,22,3,4],[1,2,33,4],[1,2,3,4]]</value></entry>
+
+    <!-- Điều hướng onboarding (port từ remote_config RN) -->
+    <!-- Gate Intro: goToHomeStatus theo count_app_open + organic_number_not_guide + isAdsCampaign.
+         isAdsCampaign thực tế lấy từ InstallReferrer (InstallReferrerHelper), key ở đây chỉ là default. -->
+    <entry><key>isSubscription</key><value>true</value></entry>
+    <entry><key>isAdsCampaign</key><value>false</value></entry>
+    <entry><key>showLanguageIntrolNumber</key><value>2</value></entry>
+    <entry><key>count_app_open</key><value>3</value></entry>
+    <entry><key>organic_number_not_guide</key><value>3</value></entry>
+</defaultsMap>

@@ -62,3 +62,17 @@ Quy tắc chốt: **`primary` thuộc về thông tin user phải xác minh, kh�
 **SUY ĐOÁN của file này (chưa có tier 1–3 chống lưng, cần người review):** quy tắc "`primary` thuộc thông tin cần xác minh, không thuộc nút"; mọi con số % viewport (25–30%, 30–35%, 40–45%, 60–65%); bậc auto-shrink 48→40→32sp; tỉ lệ 70–75% cho phần thập phân và 50–60% cho ký hiệu tiền; bỏ hẳn divider trong danh sách giao dịch; cấm count-up cho số dư; cấm animation ăn mừng ở màn thành công; ẩn nhãn trạng thái khi giao dịch thành công. Tất cả suy ra từ nguyên tắc "thao tác không hoàn tác được" của domain — hợp lý nhưng **không** phải điều khoản có sẵn trong M3/HIG.
 
 **Ranh giới IP:** chỉ lấy cấu trúc, thứ tự, tỉ lệ, nhịp. Không hex màu thương hiệu, không logo/wordmark, không bộ icon độc quyền, không copy nguyên văn. Màu chỉ mô tả ở dạng quan hệ ("đúng 1 nút filled trên màn, tương phản mạnh trên surface trầm"); giá trị thật do `tokens.json` của project sinh.
+
+## 6. Thich ung kich thuoc man hinh
+
+> Dien `components[].responsive` theo muc nay; co che va thu tu degrade chung o `agents/designer/skills/responsive_layout/SKILL.md`. Cac con so duoi thuoc dien **SUY DOAN** cua muc 5 tru khi ghi ro tier 1.
+
+**Cot:** hang action duoi so du `axis: horizontal` + `columns` `compact_small` **3** / `compact` 4-5 (5 muc tren 320dp thi moi muc ~60dp, nhan bi cat) — muc vuot bo vao sheet "Tat ca", khong thu nho nhan. Ban phim so luon **grid 3x4**, o >=48dp o moi bac; day la lop duy nhat KHONG duoc wrap/shrink.
+
+**Khoi so du:** `min_height_dp: null` (~25-30% viewport la goi y, khong phai khoa). Chuoi dau che so du phai **cung be rong** voi so that o moi co chu — neu khong layout nhay khi bat/tat che.
+
+**Degrade trong dong giao dich:** timestamp tuong doi -> icon danh muc -> nhan phu (ten nguoi nhan rut gon **ellipsis GIUA** voi so tai khoan, khong cat duoi). **Khong bao gio**: so tien va dau +/-.
+
+**Man nhap so tien:** CTA nam sat **tren ban phim**, nen `responsive_declared.keyboard_avoidance: "pin_cta_above_keyboard"` — khong `pinned` vao day man (ban phim da o day). Bang key-value man "Xem lai" o co chu 200%: nhan va gia tri chong nhau -> `wrap_behavior: "stack_vertical"` (nhan tren, gia tri duoi) thay vi cho gia tri co lai.
+
+**Landscape / medium:** ban phim so chiem 40-45% chieu cao la khong kha thi o landscape — o huong nay chuyen sang layout 2 cot (so tien trai, ban phim phai). Neu app pin portrait thi khai `orientations: ["portrait"]` va bo qua muc nay.

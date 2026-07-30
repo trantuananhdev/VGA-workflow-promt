@@ -1,0 +1,27 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+/app/local.properties
+/app/.idea
+.DS_Store
+/build
+/app/build
+/base-application/build
+/captures
+.externalNativeBuild
+.cxx
+*.apk
+*.aab
+/app/keystore/
+# Firebase Remote Config key pipeline (local only)
+/rn_keychange.json
+/firebase_old_key.json
+/fire_base_key_lib_arr.json
+/current_key_firebase.json
+/kotlin_key_firebase.json
+/keychangeConfigFirebase.json
+/firebase_final.json
+/firebase_key.json
+/encode-scripts/node_modules
+/node_modules

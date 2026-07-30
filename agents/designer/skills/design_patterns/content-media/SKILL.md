@@ -73,3 +73,17 @@ Gap ngang giữa 2 card **nhỏ hơn** gap dọc giữa 2 shelf (tỉ lệ ~1:2)
 - **Tier 1:** Apple HIG (Playing video) — chốt cứng nguyên tắc *hiển thị video đúng tỉ lệ gốc* và *không nhúng padding letterbox/pillarbox vào frame nội dung*, vì làm vậy khiến hệ điều hành không scale đúng ở full-screen/fit-to-screen/PiP; đây là căn cứ cho quyết định letterbox ở mục 3. Apple HIG (Playing audio) — Now Playing/route picker là lý do output picker có chỗ cố định ở `player_chrome`. Material 3 — tập tỉ lệ khuyến nghị (16:9, 3:2, 4:3, 1:1, 3:4, 2:3) là tập chọn tỉ lệ thumbnail; scrim = "text protection" với gradient dài, điểm giữa lệch ~3/10 về phía đậm; thang type 5 vai trò cho quan hệ cỡ chữ; card padding/gutter theo bậc 8-16-24dp cho nhịp gap.
 - **Tier 4 / không có nguồn — SUY ĐOÁN, cần người review:** các con số mật độ ("2.5-3 item/hàng", "hở 15-20%"), "artwork chiếm 45-55% chiều cao ở player audio", "play/pause lớn hơn tua 1.4-1.6×", "auto-hide ~3 giây và không auto-hide khi pause", tỉ lệ gap ngang:dọc ~1:2, và giới hạn "mini-player tối đa 2 nút" — đều do file này lượng hoá từ convention quan sát được, **không** trích từ spec chính thống. Điều chỉnh theo `tokens.json`.
 - **IP:** chỉ lấy cấu trúc/tỉ lệ/quan hệ. KHÔNG lấy: hex màu thương hiệu của app streaming nào, bộ icon transport độc quyền, hình dạng logo/badge nhận diện, ảnh bìa hay copy nguyên văn. Không viết "làm giống <app>" ở bất kỳ đâu trong layout JSON.
+
+## 6. Thich ung kich thuoc man hinh
+
+> Dien `components[].responsive` theo muc nay; co che va thu tu degrade chung o `agents/designer/skills/responsive_layout/SKILL.md`. Cac con so duoi thuoc dien **SUY DOAN** cua muc 5 tru khi ghi ro tier 1.
+
+**Cot / mat do shelf:** khai theo **ti le thumbnail**, khong theo so cot tuyet doi (muc 1). Quy doi sang `columns` cua grid doc (man Tim kiem/Thu vien): doc 2:3 -> `compact_small` **2** / `compact` **2** / `medium` 4; vuong 1:1 -> 2/3/5; ngang 16:9 -> 1/2/3. Shelf ngang thi `axis: horizontal` + `scroll_horizontal` + be rong item co dinh theo ti le, de moc "ho 15-20% thumbnail thu n+1" con dung o moi be rong.
+
+**Khung video:** `sizing: aspect_ratio` theo **ti le goc cua noi dung**, tuyet doi khong bake letterbox/pillarbox vao khung (tier 1: Apple HIG "Playing video") — bake vao la pha scaling cua OS o full-screen / fit-to-screen / PiP.
+
+**Landscape la huong CHINH cua man phat video:** neu app co video thi `responsive_declared.orientations` PHAI co `"landscape"`. Chrome (scrim + dieu khien) overlay len khung, khong day khung nho lai.
+
+**Mini-player + bottom nav = 2 tang co dinh:** ca hai `pinned: true`, mini-player `safe_area: "none"` (no neo tren nav), nav `safe_area: "bottom"`. Dung tran 2 vung pinned — danh sach phai chua padding day bang tong 2 tang, neu khong item cuoi bi che vinh vien.
+
+**Degrade trong shelf item:** nhan phu (nam / thoi luong / the loai) -> tien do da xem dang chu -> tieu de con 1 dong. **Khong bao gio**: artwork va thanh tien do da xem 2-3dp o mep duoi artwork.

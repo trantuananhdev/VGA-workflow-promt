@@ -20,7 +20,7 @@ Timeline trạng thái: dọc, 1 bước = 1 hàng; **đúng 1 hàng** (bước 
 
 ## 2. Hierarchy & emphasis
 
-Đúng **1 primary/màn/state**. Đặc thù domain này: **primary đổi theo state của đơn**, nên `emphasis` phải khai theo từng state, không khai 1 lần cho cả màn.
+**Nhiều nhất 1** `primary`/màn/state (trần, không phải đẳng thức — `limits.json → design._primary_why_not_exactly_one`). Đặc thù domain này: **primary đổi theo state của đơn**, nên `emphasis` phải khai theo từng state, không khai 1 lần cho cả màn.
 
 | State / màn | Primary | Bị hạ cấp |
 |---|---|---|
@@ -72,3 +72,19 @@ Suy ra một nguyên tắc dùng được: **primary trên các màn chờ/theo 
 **Suy đoán của tôi (chưa có tier 1 chống lưng — hãy chỉnh nếu thấy sai):** toàn bộ con số tỉ lệ ở mục 1 và 3 (bản đồ 55-65%, peek 35-45%, bản đồ còn ≥25% khi expand, khối trạng thái ~40%, rail timeline 24-32dp, ô ngày 48-56dp, grid slot 3 cột); khoảng nội suy marker 1-2s và camera 400-600ms; quy tắc "không tween chữ số đếm ngược"; và đặc biệt **"primary trên màn chờ/theo dõi là element thông tin chứ không phải nút"** cùng **"nút Huỷ không được trùng vị trí/hình dạng với CTA vừa bấm"** — hai cái này là suy luận của tôi từ pitfall "Huỷ biến mất / huỷ do quán tính" trong `domain` skill, không phải convention đã được phát biểu ở đâu.
 
 **Ranh giới IP:** chỉ cấu trúc, thứ tự, tỉ lệ và quan hệ — không hex thương hiệu, logo, bộ icon độc quyền, copy nguyên văn; cố ý không nêu tên app cụ thể như hình mẫu.
+
+## 6. Thich ung kich thuoc man hinh
+
+> Dien `components[].responsive` theo muc nay; co che va thu tu degrade chung o `agents/designer/skills/responsive_layout/SKILL.md`. Cac con so duoi thuoc dien **SUY DOAN** cua muc 5 tru khi ghi ro tier 1.
+
+**Cot:** grid slot khung gio `compact_small` **2** cot / `compact` **3** / `medium` 4-5. Duoi 360dp giu 3 cot thi moi slot ~100dp — chua duoc "07:30 - 08:00" nen phai ha ve 2 cot, KHONG duoc rut ngan nhan gio.
+
+**Ban do + bottom sheet:** ban do `sizing: aspect_ratio` hoac `fill`, **khong** khoa `min_height_dp`. O landscape ti le "ban do 55-65% / sheet peek 35-45%" khong con dung: chuyen sang ban do **trai 55-60%**, sheet thanh panel phai. Rang buoc "ban do van thay >=25% khi sheet expand" giu nguyen o moi huong.
+
+**Degrade trong peek cua sheet theo doi:** hang icon lien he -> partner row -> nhan trang thai dai. **Khong bao gio**: ETA (element lon nhat peek) va nut Huy.
+
+**Dai ngay cuon ngang:** `axis: horizontal` + `scroll_horizontal`, o 48-56dp giu **kich thuoc co dinh** — khong `shrink`, vi o nho hon 48dp la pha tap target 48dp/44pt (tier 1).
+
+**CTA dinh day + man cho doi tac:** moi CTA/nut Huy dinh day khai `pinned: true` + `safe_area: "bottom"`. Toi da 2 vung pinned — man theo doi da co top bar + sheet, nen khong them bar thu ba.
+
+**Co chu 200%:** khoi dem nguoc o man "Cho doi tac" la element lon nhat man; khoi chua no PHAI `min_height_dp: null`, neu khong so dem nguoc bi cat.

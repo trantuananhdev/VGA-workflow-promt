@@ -10,12 +10,12 @@
 
   "_single_direction_refs": "Component khai `appears_in_states`, và state KHÔNG khai danh sách component. Cố ý 1 chiều: khai 2 chiều thì 2 nơi cùng nói về 1 sự thật và chúng SẼ lệch (đúng lớp lỗi đã khiến manifest.depends_on vs dag.json lệch 5/9 agent, và process-table vs wbs.json bị bỏ). Cùng lý do token ref chỉ mang TÊN chứ không mang giá trị.",
 
-  "_split_schema_vs_validator": "File này kiểm được HÌNH DẠNG từng entry + ràng buộc TRONG 1 entry (vd action != none thì phải có đích). Ràng buộc LIÊN entry — target_state phải tồn tại thật, parent không được tạo vòng, đúng 1 emphasis=primary mỗi state, giới hạn số cỡ chữ/số màu mỗi màn — KHÔNG biểu diễn được bằng JSON Schema, nên nằm ở kernel/tools/validate.py (nhóm E13+). Chia vậy để mỗi bên làm đúng việc nó làm được, không phải để bỏ sót.",
+  "_split_schema_vs_validator": "File này kiểm được HÌNH DẠNG từng entry + ràng buộc TRONG 1 entry (vd action != none thì phải có đích, sizing=aspect_ratio thì phải có aspect_ratio). Ràng buộc LIÊN entry — target_state phải tồn tại thật, parent không được tạo vòng, nhiều nhất 1 emphasis=primary mỗi state, giới hạn số cỡ chữ/số màu mỗi màn, và toàn bộ nhóm responsive (số cột có đơn điệu theo bề rộng không, degrade_order có trỏ con thật không, khối chứa text có bị khoá chiều cao không, tiers_covered có phủ required_tiers của project không) — KHÔNG biểu diễn được bằng JSON Schema, nên nằm ở kernel/tools/validate.py (nhóm E13-E22). Chia vậy để mỗi bên làm đúng việc nó làm được, không phải để bỏ sót.",
 
   "type": "object",
   "additionalProperties": false,
   "patternProperties": { "^_": {} },
-  "required": ["schema_version", "screen_id", "states", "components"],
+  "required": ["schema_version", "screen_id", "states", "components", "responsive_declared"],
 
   "properties": {
     "schema_version": { "type": "integer", "const": 1 },
@@ -119,7 +119,80 @@
 
           "group": {
             "type": ["string", "null"],
-            "description": "Nhãn nhóm logic (vd 'product_meta') để `mobile-screen` biết các phần nào nên đi cùng nhau khi responsive/wrap. Khác `parent`: parent là quan hệ chứa, group là quan hệ 'cùng thuộc về nhau'."
+            "description": "Nhãn nhóm logic (vd 'product_meta') để `mobile-screen` biết các phần nào KHÔNG được tách rời nhau khi wrap/xuống dòng. Khác `parent`: parent là quan hệ chứa, group là quan hệ 'cùng thuộc về nhau'. Khác `responsive`: group nói CÁI GÌ đi cùng nhau, còn `responsive` nói khối chứa PHẢN ỨNG THẾ NÀO — group một mình không đủ để chặn vỡ layout, và trước khi có `responsive` thì nó là lever DUY NHẤT trong cả hợp đồng."
+          },
+
+          "responsive": {
+            "type": ["object", "null"],
+            "additionalProperties": false,
+            "patternProperties": { "^_": {} },
+            "required": ["axis", "wrap_behavior", "sizing", "safe_area"],
+            "description": "Component PHẢN ỨNG THẾ NÀO khi bề rộng/chiều cao khả dụng đổi. Bắt buộc khác null với khối chứa (section/card/list/grid/row/column) và với type nhạy kích thước (image/chart/media_player) -> validate.py mã E22. VÌ SAO TỒN TẠI: trước đây cả hợp đồng không có 1 field nào về kích thước màn hình — lever duy nhất là string tự do `group` — nên 'layout vỡ ở máy 320dp / ở cỡ chữ 200%' là lớp lỗi DUY NHẤT trong nhóm hiển thị mà không mã nào bắt được, dù nó kiểm được hoàn toàn ở tầng dữ liệu. Cùng vai trò `text_overflow` đóng cho text: mock data trên máy 393dp KHÔNG BAO GIỜ lộ ra nó.",
+            "properties": {
+              "axis": {
+                "type": "string",
+                "enum": ["vertical", "horizontal", "grid", "stack", "none"],
+                "description": "Trục xếp con. `stack` = xếp lớp (con đè lên nhau, vd scrim trên ảnh). `none` = component lá không có con."
+              },
+              "columns": {
+                "type": ["object", "null"],
+                "additionalProperties": false,
+                "patternProperties": { "^_": {} },
+                "description": "Số cột theo từng bậc, CHỈ với axis grid/horizontal. Phải phủ đủ `required_tiers` trong tokens.json -> responsive_contract, và ĐƠN ĐIỆU KHÔNG GIẢM theo bề rộng (màn rộng hơn không được ít cột hơn). Bậc medium/expanded chỉ khai khi project target tablet.",
+                "properties": {
+                  "compact_small": { "type": ["integer", "null"], "minimum": 1 },
+                  "compact": { "type": ["integer", "null"], "minimum": 1 },
+                  "medium": { "type": ["integer", "null"], "minimum": 1 },
+                  "expanded": { "type": ["integer", "null"], "minimum": 1 }
+                }
+              },
+              "wrap_behavior": {
+                "type": "string",
+                "enum": ["wrap", "scroll_horizontal", "stack_vertical", "shrink", "none"],
+                "description": "Hết chỗ theo trục ngang thì làm gì. `wrap` = xuống dòng; `scroll_horizontal` = cuộn ngang (phải cho con sau nhô ra để user biết cuộn được); `stack_vertical` = đổi sang xếp dọc; `shrink` = con co lại theo tỉ lệ; `none` = KHẲNG ĐỊNH không bao giờ hết chỗ (chỉ hợp lệ với ≤1 con trên trục ngang). axis ngang + nhiều con + `none` = tràn ngang ở 320dp -> E22."
+              },
+              "degrade_order": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "component_id của các CON THẬT của khối này, theo thứ tự bị bỏ/thu gọn TRƯỚC khi hết chỗ (phần tử đầu bỏ trước). Bắt buộc không rỗng khi số con vượt `max_children_without_degrade_order` (limits.json -> responsive). Bỏ trống = mobile-screen tự chọn cái gì bị cắt, và nó sẽ cắt DỮ LIỆU trước khi cắt NHÃN — sai thứ tự, xem agents/designer/skills/responsive_layout/SKILL.md mục 4."
+              },
+              "sizing": {
+                "type": "string",
+                "enum": ["fixed", "fill", "weight", "aspect_ratio"],
+                "description": "`fill` = chiếm hết trục chính; `weight` = chia tỉ lệ với các con cùng cấp; `aspect_ratio` = giữ tỉ lệ (ảnh/video/chart); `fixed` = kích thước cố định — chỉ hợp lý với icon/avatar/divider, KHÔNG hợp lý với khối chứa text."
+              },
+              "aspect_ratio": {
+                "type": ["string", "null"],
+                "pattern": "^[0-9]+:[0-9]+$",
+                "description": "Bắt buộc khác null khi sizing = aspect_ratio, dạng 'W:H' (vd '16:9', '1:1'). Thiếu = ảnh/video bị bóp méo hoặc bị bake letterbox vào khung nội dung (xem design_patterns/content-media mục 5)."
+              },
+              "min_height_dp": {
+                "type": ["integer", "null"],
+                "minimum": 1,
+                "description": "PHẢI null nếu khối này chứa (trực tiếp hoặc qua con) component type text/badge -> E22. Khoá chiều cao quanh text = chữ bị cắt ngay khi người dùng bật cỡ chữ hệ thống 200% (`required_font_scale` trong limits.json), và không mock data nào lộ ra."
+              },
+              "safe_area": {
+                "type": "string",
+                "enum": ["none", "top", "bottom", "both", "horizontal"],
+                "description": "Vùng inset hệ thống mà component này phải tôn trọng. `top` = notch/status bar; `bottom` = gesture bar/home indicator; `horizontal` = tai màn hình khi landscape. `none` chỉ hợp lệ với component KHÔNG chạm biên màn hình."
+              },
+              "pinned": {
+                "type": "boolean",
+                "description": "true = dính vào biên màn (top app bar, bottom CTA bar) chứ không cuộn theo nội dung. pinned = true + safe_area = 'none' -> E22: bar nằm dưới gesture bar, user bấm không trúng. Số vùng pinned mỗi state có trần `max_pinned_regions_per_state`."
+              }
+            },
+            "allOf": [
+              {
+                "_note": "giu ti le thi phai noi ro ti le nao",
+                "if": { "properties": { "sizing": { "const": "aspect_ratio" } }, "required": ["sizing"] },
+                "then": { "required": ["aspect_ratio"], "properties": { "aspect_ratio": { "type": "string", "minLength": 3 } } }
+              },
+              {
+                "_note": "grid/horizontal thi phai khai so cot theo bac",
+                "if": { "properties": { "axis": { "enum": ["grid", "horizontal"] } }, "required": ["axis"] },
+                "then": { "required": ["columns"], "properties": { "columns": { "type": "object" } } }
+              }
+            ]
           },
 
           "pattern_ref": {
@@ -291,6 +364,14 @@
             }
           },
           {
+            "_note": "khoi chua + type nhay kich thuoc PHAI khai responsive — day la cho chan lop loi 'layout vo o 320dp / o co chu 200%'",
+            "if": {
+              "properties": { "type": { "enum": ["section", "card", "list", "grid", "row", "column", "image", "chart", "media_player"] } },
+              "required": ["type"]
+            },
+            "then": { "required": ["responsive"], "properties": { "responsive": { "type": "object" } } }
+          },
+          {
             "_note": "icon_button khong co label = o trong voi screen reader",
             "if": { "properties": { "type": { "const": "icon_button" } }, "required": ["type"] },
             "then": {
@@ -326,6 +407,38 @@
             "then": { "required": ["after_component_id"], "properties": { "after_component_id": { "type": "string", "minLength": 1 } } }
           }
         ]
+      }
+    },
+
+    "responsive_declared": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": { "^_": {} },
+      "required": ["tiers_covered", "orientations", "font_scale_verified", "keyboard_avoidance"],
+      "description": "Khai ở mức MÀN HÌNH: layout này đã được nghĩ cho những bậc/hướng/cỡ chữ nào. Cùng nguyên tắc `design_metrics_declared` — khai bằng SỐ để validate.py đối chiếu với `responsive_contract` trong tokens.json, không phải câu 'đã responsive'. Thiếu key này = E22.",
+      "properties": {
+        "tiers_covered": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "enum": ["compact_small", "compact", "medium", "expanded"] },
+          "description": "Phải phủ đủ `required_tiers` trong tokens.json -> responsive_contract. Khai thêm bậc không có trong breakpoints_dp = tên bịa."
+        },
+        "orientations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "enum": ["portrait", "landscape"] },
+          "description": "Phải phủ đủ `target_orientations`. App pin portrait thì chỉ ['portrait'] — không khai landscape cho có."
+        },
+        "font_scale_verified": {
+          "type": "number",
+          "minimum": 1.0,
+          "description": "Cỡ chữ hệ thống cao nhất mà layout này còn đúng. Phải >= `required_font_scale` (limits.json -> responsive, mặc định 2.0). Đây là chỗ bắt lớp lỗi cắt chữ mà mock data không bao giờ lộ ra."
+        },
+        "keyboard_avoidance": {
+          "type": "string",
+          "enum": ["scroll_content", "pin_cta_above_keyboard", "resize_content", "not_applicable"],
+          "description": "Bàn phím mở lên thì màn xử lý thế nào. `not_applicable` CHỈ hợp lệ khi màn không có component type input/select/search_field -> E22. Bàn phím che đúng cái nút Gửi là lỗi vỡ layout phổ biến nhất trên form và không test nào bắt."
+        }
       }
     },
 

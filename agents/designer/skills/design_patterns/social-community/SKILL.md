@@ -70,3 +70,19 @@ Thứ tự nhấn trong 1 feed item (giảm dần): **media → nội dung text 
 - **Tier 1:** Material 3 — tập tỉ lệ media khuyến nghị (16:9, 3:2, 4:3, 1:1, 3:4, 2:3) nên chọn tỉ lệ khung feed trong tập này; nguyên tắc scrim làm "text protection" và cấu trúc gradient dài, điểm giữa lệch ~3/10 về phía đậm; thang type 5 vai trò (display/headline/title/label/body) là cơ sở cho quan hệ cỡ chữ ở mục 2. Apple HIG (Layout) — vùng an toàn, tap target.
 - **Tier 4 / không có nguồn — SUY ĐOÁN, cần người review:** con số "hở 10-15% item kế tiếp", "bong bóng ≤ 75-80% bề rộng", "text 3-4 dòng rồi Xem thêm", "auto-hide 2-3 giây", ngưỡng "top bar ≤ 7% chiều cao màn", và mức "avatar 40dp / 32dp" — đều là quan sát convention chung được lượng hoá bởi chính file này, **không** trích từ spec chính thống nào. Điều chỉnh theo `tokens.json` của project.
 - **IP:** mọi con số ở đây là **quan hệ tỉ lệ và cấu trúc**, dùng chung tự do. KHÔNG lấy: hex màu accent của app nào, bộ icon like/react độc quyền, hình dạng "reaction" đặc trưng của 1 nền tảng, copy nguyên văn nhãn/empty-state. Màu thật do `tokens.json` sinh từ brand của project.
+
+## 6. Thich ung kich thuoc man hinh
+
+> Dien `components[].responsive` theo muc nay; co che va thu tu degrade chung o `agents/designer/skills/responsive_layout/SKILL.md`. Cac con so duoi thuoc dien **SUY DOAN** cua muc 5 tru khi ghi ro tier 1.
+
+**Cot:** feed **luon 1 cot o moi bac**, ke ca `expanded` — grid buoc phai crop noi dung do user tao (muc 1). O `medium`/`expanded` khong tang cot ma **gioi han be rong noi dung** (~600dp) va can giua; day la ngoai le duy nhat cua nguyen tac "man rong hon thi nhieu cot hon".
+
+**Media trong feed item:** `sizing: aspect_ratio`, giu ti le goc cua anh, **khong** khoa chieu cao. Anh khong ro ti le thi mac dinh 4:5 va crop giua — dung `min_height_dp`.
+
+**Degrade trong feed item:** timestamp -> nhan nhom/trang -> engagement count dang chu ("12 binh luan" -> "12"). **Khong bao gio**: noi dung post, va **khong bao gio thu nho vung bam** cua engagement row — 48dp la mo rong hit area ngoai vung ve (muc 3), o bac nao cung giu.
+
+**Bubble chat:** `wrap_behavior: "wrap"`, be rong toi da 75-80% theo **be rong container**, khong theo dp co dinh — 280dp cung la 87% tren may 320dp.
+
+**Top bar / bottom nav:** `pinned: true` + `safe_area: "top"` / `"bottom"`. Dung 2 vung pinned — dat trung tran, nen khong them bar noi nao.
+
+**Co chu 200%:** avatar 40dp giu nguyen kich thuoc (`sizing: fixed`), nhung khoi ten + timestamp ben canh phai `wrap_behavior: "stack_vertical"`, neu khong ten bi ellipsis den con 3 chu.

@@ -67,3 +67,19 @@ Quy tắc chốt: ở màn danh sách, `primary` là **nội dung do user tạo*
 **SUY ĐOÁN của file này (chưa có tier 1–3 chống lưng, cần người review):** mọi con số % viewport (≤40% sheet, 80–85% cột kanban + hé 12–15%, 45–55% lưới tháng, ≤35% ảnh cover, ≤25% illustration); quy tắc "gap giữa cột > gap giữa card"; delay 250–400ms trước khi collapse dòng vừa tick; "tối đa 3 vùng thông tin / 2 chip + N mỗi dòng"; "tối đa 1 loại badge màu mỗi màn"; "chỉ hạn quá hạn được đổi màu trong 1 dòng"; giữ quick-add sheet mở sau khi lưu; header nhóm thấp hơn dòng nội dung; cấm slide ngang khi đổi chế độ xem. Đây là suy luận từ nguyên tắc "mật độ cao nhưng ít tín hiệu", không phải điều khoản có sẵn trong M3/HIG.
 
 **Ranh giới IP:** chỉ lấy cấu trúc, thứ tự, tỉ lệ, nhịp. Không hex màu thương hiệu, không logo/wordmark, không bộ icon hay illustration độc quyền, không copy nguyên văn. Màu chỉ mô tả ở dạng quan hệ ("thang xám cho metadata, đúng 1 accent cho trạng thái cần hành động"); giá trị thật do `tokens.json` của project sinh.
+
+## 6. Thich ung kich thuoc man hinh
+
+> Dien `components[].responsive` theo muc nay; co che va thu tu degrade chung o `agents/designer/skills/responsive_layout/SKILL.md`. Cac con so duoi thuoc dien **SUY DOAN** cua muc 5 tru khi ghi ro tier 1.
+
+**Cot:** danh sach chinh **1 cot o moi bac** (`medium`/`expanded` thi chuyen sang master-detail: danh sach trai ~35-40%, chi tiet phai — khong tang so cot cua danh sach). Kanban `axis: horizontal` + `scroll_horizontal`, cot rong 80-85% viewport de cot ke tiep he 12-15% (muc 1); o `medium` ha ve ~45% de thay 2 cot, o `expanded` ~30%.
+
+**Row noi dung:** 48-56dp (1 dong) / ~72dp (2 dong) la **san**, nen `min_height_dp: null` va `sizing: fill` — o co chu 200% row phai cao ra, khong duoc cat title.
+
+**Degrade trong row:** nhan du an -> icon uu tien -> ngay han dang chu ("15 thang 3" -> "15/3"). **Khong bao gio**: title (day la `primary` cua man danh sach — muc 2) va checkbox. Indent subtask 32-40dp giu nguyen: bo indent la mat quan he cha-con.
+
+**Quick add sheet:** `keyboard_avoidance: "pin_cta_above_keyboard"` — hang icon tuy chon + nut luu nam **ngay tren ban phim**, va sheet giu <=40% chieu cao *phan con lai sau ban phim*, khong phai 40% man.
+
+**Hang chip loc:** `axis: horizontal` + `wrap_behavior: "scroll_horizontal"` (khong `wrap` — chip loc wrap 2-3 hang se an het khong gian danh sach o co chu lon).
+
+**Lich:** luoi thang `sizing: aspect_ratio` 7:6, khong khoa dp — o landscape va o `medium` thi luoi thang trai, danh sach ngay phai.

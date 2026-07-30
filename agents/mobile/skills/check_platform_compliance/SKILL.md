@@ -21,7 +21,18 @@
      foreground service type nếu dùng service.
 4. API deprecated: quét cảnh báo deprecated ở mức chặn build/submit (không phải mọi
    deprecated warning — chỉ loại store thật sự từ chối).
-5. Đối chiếu kết quả với shared/capabilities/native.json — mọi permission liệt kê ở đó
+5.5. KÍCH THƯỚC MÀN HÌNH — đối chiếu shell với shared/design/tokens.json ->
+   responsive_contract (do design-system chốt theo system-spec.md):
+   - `screenOrientation`/`UISupportedInterfaceOrientations` của shell phải KHỚP
+     `target_orientations`. Shell pin portrait mà contract khai có `landscape` (hoặc
+     ngược lại) = vi phạm — và đây là loại lỗi mà mọi story build lên trên đều thừa hưởng.
+   - Shell phải xử lý inset hệ thống ở tầng theme/window (edge-to-edge + safe area),
+     không để từng story tự bù: `mobile-screen` khai `responsive.safe_area` theo
+     component, nhưng nếu window không cấp inset thật thì mọi khai báo đó là giấy tờ.
+   - Shell KHÔNG được chặn/ghi đè font scale hệ thống (vd fontScale = 1 cứng). Contract
+     cam kết layout đúng tới `max_font_scale` (mặc định 2.0); shell khoá cỡ chữ là biến
+     cam kết đó thành không kiểm được, và là 1 lỗi a11y thật.
+6. Đối chiếu kết quả với shared/capabilities/native.json — mọi permission liệt kê ở đó
    phải có mô tả lý do hợp lệ; permission không có story_id nào cần = phải gỡ
    (least-privilege, xem AGENT.md).
 ```

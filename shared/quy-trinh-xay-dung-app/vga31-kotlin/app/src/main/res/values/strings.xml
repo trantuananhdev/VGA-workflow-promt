@@ -1,0 +1,58 @@
+<resources>
+    <string name="app_name">Software Update Checker Pro</string>
+
+    <!-- ===== Khoá cấu hình SDK (spec §5.4). TODO: điền giá trị thật trước phát hành ===== -->
+    <string name="admob_app_id">ca-app-pub-9405071173323068~2621217845</string>
+    <string name="app_flyer_id">Qhno4yJY6KHmZp9uS9DRe4</string>
+    <string name="facebook_app_id">1157103576246167</string>
+    <string name="facebook_client_token">e6a7d21bc508873d373ac97b7ce221a4</string>
+    <!-- Key Play Console THẬT của com.supportsoftware.checkerpro -->
+    <string name="public_license_key">MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxX+E2kPXdPlnE5tidiuREZ4HuPOY7g6uDr+PSNPlZ83s5FtU17+ZUEU12Mn1fRGooenGO3aaR+jP9Py6cwHKRoux76XI44EeDfSD3d9PqTb2vro8rmC9E9EULrE7Ketq+eZkp6Lg542RsZ6jxr/kKf0dl4YlRXtY8nOZvBSptR/zfI78wygO+V85J4fnA3PwuwNQqFrRUs2cB7o530eluGahqlRpPE8B1gfUXi68vsw/8RVvYkZ8cxopIfAkPDMRLxWkHlnuOV8FyiPc7aDyZqTE8Uu0WBx+EW0H+sftebhRHRRkmHH3qnkA/Zwl+8QXTMssIAVEm0HWDE4CscgDAwIDAQAB</string>
+
+    <!-- ===== Notification của lib — nội dung HỢP CHỦ ĐỀ app cập nhật phần mềm (spec §5.2) ===== -->
+    <string name="baseapp_new_file_content">A new app update is available on your device</string>
+    <string name="baseapp_screenshot_title">Screenshot captured — check your apps</string>
+    <string name="baseapp_recent_title">Recently updated apps</string>
+    <string name="baseapp_open">Open</string>
+    <string name="baseapp_scan">Scan</string>
+    <string name="baseapp_daily_open_content">Check now for new app updates available today</string>
+    <string name="baseapp_check_now">Check now</string>
+    <string name="baseapp_fullscreen_1">App updates available</string>
+    <string name="baseapp_fullscreen_2">Tap to scan and update your apps now</string>
+    <string name="baseapp_outapp_title">Software Update</string>
+    <string name="baseapp_outapp_content">Some of your apps may need an update — tap to check</string>
+
+    <!-- Dialog xin quyền thông báo -->
+    <string name="baseapp_noti_title">Enable notifications</string>
+    <string name="baseapp_noti_content">Get notified when your apps have new updates available</string>
+
+    <!-- ===== Bộ thông báo (ghép theo index, đúng 5 phần tử) ===== -->
+    <string-array name="notification_title2">
+        <item>App updates available</item>
+        <item>New version ready</item>
+        <item>Scan your apps</item>
+        <item>Free up space</item>
+        <item>Keep apps up to date</item>
+    </string-array>
+    <string-array name="notification_message2">
+        <item>Some of your apps have updates waiting</item>
+        <item>A newer version of your apps is available</item>
+        <item>Tap to scan for outdated apps</item>
+        <item>Remove unused apps to save storage</item>
+        <item>Stay secure with the latest app versions</item>
+    </string-array>
+    <string-array name="notification_button2">
+        <item>Update</item>
+        <item>View</item>
+        <item>Scan</item>
+        <item>Clean</item>
+        <item>Open</item>
+    </string-array>
+
+    <!-- ===== Text tính năng màn IAP (đi cặp icon feature) ===== -->
+    <string name="baseapp_feature1">Ad-free experience</string>
+    <string name="baseapp_feature2">Unlimited update scans</string>
+    <string name="baseapp_feature3">Premium subscription</string>
+    <string name="baseapp_feature4">Faster app management</string>
+    <string name="baseapp_feature5">Priority support</string>
+</resources>

@@ -23,6 +23,20 @@
     "token_chars_per_token": 3.0,
     "_token_why": "Uoc luong token = ceil(so ky tu / gia tri nay). KHONG dung tokenizer that de giu stdlib-only, portable moi tool. Chon 3.0 (thap hon thuc te tieng Anh ~4) de UOC LUONG CAO HON thuc -> fail-safe: tha bao vuot ngan sach oan hon la de agent that su bi tran context. Tieng Viet co dau ton token hon nen 3.0 la co y."
   },
+  "responsive": {
+    "_note": "Nguong cho validate.py nhom E22, do tren shared/design/screens/<story>.json -> responsive_declared + components[].responsive. Bac kich thuoc / orientation / font scale THAT thi doc o shared/design/tokens.json -> responsive_contract (do design-system chot theo system-spec.md), KHONG dat o day: chung la quyet dinh CUA PROJECT, con day chi la tran co dinh cua control plane.",
+    "_why_this_block_exists": "Truoc day khong co 1 field nao trong hop dong may doc noi ve kich thuoc man hinh: tokens.json khong co breakpoint, screen-layout.schema.json khong co width/orientation/font-scale. Lever duy nhat la string tu do `group`. Hau qua dung bang lop loi ma on_null/text_overflow sinh ra de chan: designer khai 'xong', Gate 5 pass, mobile-screen code theo, va layout chi vo tren may that cua nguoi dung.",
+    "_threshold_philosophy": "Cung tinh than design._threshold_philosophy: dat o muc 'gan nhu chac chan SAI', khong phai 'ly tuong'. Vi du 3 cot tren man 360dp thi gan nhu chac chan vo, con 2 cot thi con tranh luan duoc — nen nguong la 2.",
+    "max_children_without_degrade_order": 3,
+    "_degrade_why": "Khoi co nhieu hon so con nay ma khong khai `degrade_order` = khi het cho thi mobile-screen tu chon cai gi bi cat. Va no se cat sai thu tu: cat du lieu truoc khi cat nhan (xem agents/designer/skills/responsive_layout/SKILL.md muc 4).",
+    "max_columns_compact": 2,
+    "_columns_why": "Tran so cot o bac compact_small/compact (< 600dp). Can cu tier 1: M3 window size class compact <600dp. 3 cot card tren man 360dp thi moi cot con ~110dp — khong du cho anh + ten 2 dong + gia.",
+    "max_pinned_regions_per_state": 2,
+    "_pinned_why": "Nhieu nhat 2 vung dinh (vd top app bar + bottom CTA bar) moi state. 3 vung dinh tro len thi phan noi dung cuon duoc con lai qua nho, va o landscape thi gan nhu khong con gi.",
+    "min_supported_width_dp": 320,
+    "required_font_scale": 2.0,
+    "_font_scale_why": "Layout phai con dung o co chu he thong 200% — day la muc Android/iOS cho phep nguoi dung dat that, khong phai truong hop bien. Day cung la ly do khoi chua text KHONG duoc khoa chieu cao (responsive.min_height_dp phai null)."
+  },
   "design": {
     "_note": "Nguong cho static design metrics tren shared/design/screens/<story>.json (validate.py nhom I, ma E13+). Doc cung schema kernel/contracts/screen-layout.schema.json -> design_metrics_declared.",
     "_threshold_philosophy": "Cac so nay dat o muc 'gan nhu chac chan SAI', KHONG phai muc 'ly tuong'. Ly do: gate CHAN pipeline thi phai dua tren su chac chan, khong the chan mot thiet ke hop le chi vi no khong toi uu. Vi du ly tuong la 3-4 co chu moi man, nhung nguong chan dat o 6 — vuot 6 thi gan nhu chac la nhieu typographic, con 5 thi con tranh luan duoc. Phan tinh chinh tham my (5 vs 4 co chu) thuoc ve NGUOI o Gate 7 va o buoc review mock, khong thuoc ve validator.",
@@ -35,6 +49,7 @@
     "spacing_scale_order": ["xs", "sm", "md", "lg", "xl", "xxl"],
     "max_primary_emphasis_per_state": 1,
     "_primary_why": "NHIEU NHAT 1 component emphasis=primary moi state. 2 primary = 2 CTA tranh tieu diem — day la loi hierarchy pho bien nhat va la thu rule nay sinh ra de chan.",
+    "_responsive_pointer": "Nguong ve KICH THUOC MAN HINH nam o block 'responsive' duoi, khong o day: nhom nay do luong THIET KE TINH (bao nhieu co chu, bao nhieu mau) con nhom kia do luong PHAN UNG THEO BE RONG (bao nhieu cot, wrap the nao). Tron lai thi khong biet sua so nao khi layout vo.",
     "_primary_why_not_exactly_one": "Ban dau dat 'DUNG 1' va do la SAI — phat hien khi doi chieu voi agents/designer/skills/design_patterns/e-commerce-marketplace/SKILL.md muc 2: man DANH SACH khong nen co primary nao, vi nang 1 card len tren cac card khac la pha chinh chuc nang so sanh cua man hinh. Ep phai co 1 primary o do se buoc designer dung 1 primary GIA. Vi vay nguong la tran (<=1), khong phai dang thuc (==1): 0 primary la hop le voi man browse/so sanh, con 2 primary thi khong hop le voi bat ky man nao."
   }
 }

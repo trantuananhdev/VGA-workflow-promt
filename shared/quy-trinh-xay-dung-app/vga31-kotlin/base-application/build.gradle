@@ -1,0 +1,55 @@
+// Flat module exposing base-application-1.0.0.aar as a local artifact with its
+// transitive runtime dependencies. The AAR ships no POM, so every dependency the
+// library needs at runtime MUST be declared here, otherwise the host app will hit
+// NoClassDefFoundError at runtime or link errors at build time.
+configurations.maybeCreate("default")
+artifacts.add("default", file('base-application-1.0.0.aar'))
+
+dependencies {
+    // --- Required dependencies for AARs ---
+    "default"("androidx.core:core-ktx:1.16.0")
+    "default"("androidx.appcompat:appcompat:1.7.1")
+    "default"("com.google.android.material:material:1.13.0")
+    "default"("androidx.preference:preference:1.2.1")
+    "default"("androidx.work:work-runtime:2.10.3")
+    "default"("com.android.billingclient:billing:7.1.0")
+    "default"("com.google.android.gms:play-services-ads:25.2.0")
+    "default"('com.google.android.ump:user-messaging-platform:4.0.0')
+    "default"("com.google.ads.mediation:facebook:6.21.0.2")
+    "default"(platform("com.google.firebase:firebase-bom:34.1.0"))
+    "default"("com.google.firebase:firebase-analytics")
+    "default"("com.google.firebase:firebase-crashlytics")
+    "default"("com.google.firebase:firebase-messaging-ktx:24.1.2")
+    "default"("com.google.firebase:firebase-firestore:26.0.2")
+    "default"("com.google.firebase:firebase-appcheck-playintegrity:19.0.0")
+    "default"("com.google.firebase:firebase-config:23.0.0")
+    "default"("com.intuit.sdp:sdp-android:1.1.1")
+    "default"("com.intuit.ssp:ssp-android:1.1.1")
+    "default"("com.facebook.shimmer:shimmer:0.5.0")
+    "default"("com.airbnb.android:lottie:6.6.7")
+    "default"("androidx.media:media:1.0.0")
+    "default"('com.appsflyer:purchase-connector:2.1.2')
+    "default"('de.hdodenhof:circleimageview:3.1.0')
+    "default"('com.github.castorflex.smoothprogressbar:library-circular:1.3.0')
+    "default"("org.jsoup:jsoup:1.21.2")
+    "default"("com.squareup.okhttp3:okhttp:5.2.1")
+    "default"('com.akexorcist:localization:1.2.11')
+    "default"('androidx.lifecycle:lifecycle-process:2.9.4')
+    "default"('com.appsflyer:af-android-sdk:6.18.0')
+    "default"('com.adjust.sdk:adjust-android:5.6.1')
+    "default"('com.android.installreferrer:installreferrer:2.2')
+    "default"('com.facebook.android:facebook-android-sdk:18.1.3')
+    "default"('com.github.bumptech.glide:glide:4.16.0')
+    // Android-SpinKit ĐÃ được gói sẵn trong base-application AAR (fat-aar) -> KHÔNG khai lại
+    // (khai lại gây R8 "Type ... is defined multiple times" lúc build release).
+
+    // Jetpack Compose runtime — required because the AAR contains NewSplashActivity /
+    // UninstallActivity built with Compose, and `implementation`-scoped deps from the lib
+    // are NOT bundled into the AAR.
+    "default"(platform("androidx.compose:compose-bom:2024.12.01"))
+    "default"("androidx.compose.ui:ui")
+    "default"("androidx.compose.foundation:foundation")
+    "default"("androidx.compose.material3:material3")
+    "default"("androidx.activity:activity-compose:1.9.3")
+    "default"("com.airbnb.android:lottie-compose:6.6.7")
+}

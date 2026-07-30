@@ -17,8 +17,23 @@
       python kernel/tools/resume.py PROJ-design-system --decision <theme_id> --note "<lý do>"
   Không phương án nào ổn thì bỏ --decision và ghi rõ cần sửa gì trong --note.
 
+  ══ CẤU TRÚC (Gate 7 điều 4 + điều 8) ══════════════════════════════════════════════════
+  1. Màn hình mock được viết ĐÚNG 1 LẦN (<template id="screen">), mọi màu/cỡ chữ/nhịp
+     spacing/bo góc đều là CSS var. Mỗi phương án chỉ là 1 bộ giá trị var (.theme-<id>).
+     Cố ý như vậy: nó phản chiếu đúng điều mà tokens.json bảo đảm — cùng 1 layout, đổi
+     theme chỉ đổi giá trị. Viết lại markup cho từng phương án sẽ cho phép 2 phương án
+     lệch nhau về bố cục, và lúc đó người chọn đang so 2 thứ khác nhau.
+  2. Mỗi phương án render ở 3 BỀ RỘNG (320 / 393 / 600dp) + 1 lượt ở CỠ CHỮ 200%.
+     Đây là chỗ DUY NHẤT trong hệ thống mà người thấy thiết kế trước khi có code: một
+     nhịp spacing hoặc type scale vỡ ở 320dp thì lỗi nằm ở CHÍNH THEME đó — sửa 1 file.
+     Để lọt xuống Gate 5 thì N story đã vẽ lên trên nó và mỗi story phải tự xoay.
+  3. Cỡ chữ nhân với var(--fs); spacing/bo góc KHÔNG nhân — cỡ chữ hệ thống chỉ phóng
+     chữ, không phóng nhịp. Đó chính là lý do khối chứa text không được khoá chiều cao
+     (screen-layout.schema.json -> responsive.min_height_dp).
+
   BẢN DƯỚI ĐÂY LÀ VÍ DỤ MẪU khớp `themes` mẫu trong shared/design/tokens.json —
-  design-system phải sinh lại theo phương án thật của project.
+  design-system phải sinh lại theo phương án thật của project (đổi giá trị trong khối
+  .theme-*, thêm/bớt cột trong THEMES, giữ nguyên cơ chế).
 -->
 <style>
   :root { color-scheme: light; }
@@ -26,168 +41,207 @@
   body { margin: 0; padding: 24px; background: #16181c; color: #e8eaed;
          font: 15px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif; }
   h1 { font-size: 20px; margin: 0 0 4px; }
-  .sub { color: #9aa0a6; font-size: 13px; margin-bottom: 24px; }
-  .grid { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
-  .col { flex: 1 1 300px; max-width: 360px; }
-  .head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+  .sub { color: #9aa0a6; font-size: 13px; margin: 0 0 24px; max-width: 900px; }
+  .theme-row { border-top: 1px solid #2c2f36; padding: 20px 0 4px; }
+  .head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
   .id { font: 600 12px/1 ui-monospace, monospace; background: #2c2f36; color: #cfd3d9;
         padding: 4px 7px; border-radius: 5px; }
   .label { font-weight: 600; font-size: 14px; }
-  .why { color: #9aa0a6; font-size: 12.5px; margin: 0 0 10px; min-height: 34px; }
-  /* khung điện thoại — để đánh giá đúng tỉ lệ mobile, không phải block web rộng */
-  .phone { border-radius: 26px; overflow: hidden; border: 1px solid #3a3d44;
+  .why { color: #9aa0a6; font-size: 12.5px; margin: 0 0 12px; }
+  .frames { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+  .frame { flex: 0 0 auto; }
+  .cap { font: 12px/1.4 ui-monospace, monospace; color: #9aa0a6; margin-bottom: 5px; }
+  .cap b { color: #e8eaed; font-weight: 600; }
+  .cap.warn b { color: #ffb86b; }
+  /* khung điện thoại — bề rộng do JS đặt, để đánh giá đúng tỉ lệ mobile */
+  .phone { border-radius: 22px; overflow: hidden; border: 1px solid #3a3d44;
            box-shadow: 0 8px 28px #0008; }
-  .scr { padding: 0; }
-  .swatches { display: flex; gap: 4px; margin-top: 8px; }
-  .sw { flex: 1; height: 20px; border-radius: 4px; border: 1px solid #ffffff22; }
+  .swatches { display: flex; gap: 4px; margin-top: 10px; max-width: 360px; }
+  .sw { flex: 1; height: 18px; border-radius: 4px; border: 1px solid #ffffff22; }
   .foot { color: #9aa0a6; font-size: 12px; margin-top: 28px; border-top: 1px solid #2c2f36;
           padding-top: 14px; }
   code { font: 12px/1 ui-monospace, monospace; background: #2c2f36; padding: 2px 5px;
          border-radius: 4px; }
+
+  /* ═══════════ Màn mock: chỉ dùng var, không có literal nào ═══════════ */
+  .scr { --fs: 1;
+         background: var(--c-bg); color: var(--c-on-surface);
+         font-size: calc(var(--t-body) * var(--fs));
+         line-height: calc(var(--t-body-lh) * var(--fs)); }
+  .scr .bar { background: var(--c-surface); border-bottom: 1px solid var(--c-border);
+              padding: var(--sp-md); }
+  .scr .bar-title { font-size: calc(var(--t-title) * var(--fs));
+                    line-height: calc(var(--t-title-lh) * var(--fs));
+                    font-weight: var(--w-title); letter-spacing: var(--ls-title); }
+  .scr .body { padding: var(--sp-md); display: flex; flex-direction: column; gap: var(--sp-md); }
+  .scr .card { background: var(--c-surface); border: 1px solid var(--c-border);
+               border-radius: var(--r-md); padding: var(--sp-md); }
+  .scr .card.alt { background: var(--c-surface-variant); border-color: transparent; }
+  .scr .kicker { font-size: calc(var(--t-label) * var(--fs));
+                 line-height: calc(var(--t-label-lh) * var(--fs));
+                 font-weight: var(--w-label); letter-spacing: var(--ls-label);
+                 color: var(--c-muted); }
+  .scr .name { font-weight: var(--w-title); margin-top: var(--sp-sm); }
+  .scr .meta { font-size: calc(var(--t-body-sm) * var(--fs));
+               line-height: calc(var(--t-body-sm-lh) * var(--fs));
+               color: var(--c-muted); margin-top: var(--sp-xs); }
+  .scr .chips { display: flex; flex-wrap: wrap; gap: var(--sp-sm); margin-top: var(--sp-sm); }
+  .scr .chip { background: var(--c-surface-variant); color: var(--c-success);
+               border-radius: var(--r-pill); padding: var(--sp-xs) var(--sp-sm);
+               font-size: calc(var(--t-caption) * var(--fs));
+               line-height: calc(var(--t-caption-lh) * var(--fs)); font-weight: var(--w-label); }
+  .scr .err { background: var(--c-surface); border: 1px solid var(--c-danger);
+              border-radius: var(--r-md); padding: var(--sp-md); }
+  .scr .err-title { color: var(--c-danger); font-weight: var(--w-title);
+                    font-size: calc(var(--t-body-sm) * var(--fs));
+                    line-height: calc(var(--t-body-sm-lh) * var(--fs)); }
+  .scr .btn { border-radius: var(--r-md); padding: var(--sp-md); text-align: center;
+              font-weight: var(--w-title); }
+  .scr .btn.primary { background: var(--c-primary); color: var(--c-on-primary); }
+  .scr .btn.ghost { border: 1px solid var(--c-primary); color: var(--c-primary);
+                    margin-top: var(--sp-sm);
+                    font-size: calc(var(--t-body-sm) * var(--fs));
+                    line-height: calc(var(--t-body-sm-lh) * var(--fs)); }
+  .scr .btn.off { background: var(--c-disabled-bg); color: var(--c-disabled-fg); }
+  /* hàng meta: chính là chỗ vỡ ở 320dp nếu không wrap — để nguyên `wrap` ở đây
+     cố ý, vì mục đích của preview là cho thấy THEME có đủ chỗ hay không */
+  .scr .row { display: flex; flex-wrap: wrap; gap: var(--sp-sm); align-items: baseline; }
+
+  /* ═══════════ 3 phương án = 3 bộ giá trị var (VÍ DỤ MẪU) ═══════════ */
+  .theme-A-calm {
+    --c-primary:#2F6F5F; --c-on-primary:#FFFFFF; --c-bg:#FBFBF9; --c-surface:#FFFFFF;
+    --c-surface-variant:#F1F0EC; --c-on-surface:#1C1D1A; --c-muted:#61635E; --c-border:#E2E1DC;
+    --c-success:#2E7D4F; --c-danger:#B3261E; --c-disabled-bg:#EDECE8; --c-disabled-fg:#A3A5A0;
+    --t-title:22px; --t-title-lh:28px; --t-body:16px; --t-body-lh:24px;
+    --t-body-sm:14px; --t-body-sm-lh:20px; --t-label:13px; --t-label-lh:16px;
+    --t-caption:12px; --t-caption-lh:16px;
+    --w-title:600; --w-label:600; --ls-title:0px; --ls-label:.2px;
+    --sp-xs:4px; --sp-sm:8px; --sp-md:16px; --r-md:12px; --r-pill:999px;
+  }
+  .theme-B-bold {
+    --c-primary:#1A56DB; --c-on-primary:#FFFFFF; --c-bg:#FFFFFF; --c-surface:#FFFFFF;
+    --c-surface-variant:#F3F5FA; --c-on-surface:#0F172A; --c-muted:#5A6478; --c-border:#DDE2EC;
+    --c-success:#12805C; --c-danger:#DC2626; --c-disabled-bg:#EEF1F6; --c-disabled-fg:#98A1B2;
+    --t-title:22px; --t-title-lh:28px; --t-body:16px; --t-body-lh:24px;
+    --t-body-sm:14px; --t-body-sm-lh:20px; --t-label:14px; --t-label-lh:18px;
+    --t-caption:12px; --t-caption-lh:16px;
+    --w-title:700; --w-label:700; --ls-title:-.2px; --ls-label:.2px;
+    --sp-xs:4px; --sp-sm:8px; --sp-md:16px; --r-md:14px; --r-pill:999px;
+  }
+  .theme-C-dense {
+    --c-primary:#0B5FA5; --c-on-primary:#FFFFFF; --c-bg:#F7F8FA; --c-surface:#FFFFFF;
+    --c-surface-variant:#EDF0F4; --c-on-surface:#141A21; --c-muted:#5A6572; --c-border:#D9DEE5;
+    --c-success:#0F7A4F; --c-danger:#C0271F; --c-disabled-bg:#E9ECF1; --c-disabled-fg:#9AA3AF;
+    --t-title:20px; --t-title-lh:26px; --t-body:15px; --t-body-lh:22px;
+    --t-body-sm:13px; --t-body-sm-lh:18px; --t-label:12px; --t-label-lh:16px;
+    --t-caption:11px; --t-caption-lh:14px;
+    --w-title:600; --w-label:600; --ls-title:0px; --ls-label:.3px;
+    --sp-xs:2px; --sp-sm:6px; --sp-md:12px; --r-md:8px; --r-pill:999px;
+  }
 </style>
 </head>
 <body>
 
 <h1>Theme Preview — chọn 1 phương án</h1>
 <p class="sub">
-  Mỗi cột là 1 phương án <strong>đã render thành màn hình thật</strong> (list + card + CTA + trạng thái lỗi),
-  không phải bảng màu trừu tượng — vì bảng màu không cho thấy nhịp spacing và độ tương phản khi dùng thật.
+  Mỗi hàng là 1 phương án <strong>đã render thành màn hình thật</strong> (list + card + CTA chính + nút phụ +
+  trạng thái lỗi + trạng thái disabled/loading), ở <strong>3 bề rộng</strong> và thêm 1 lượt ở
+  <strong>cỡ chữ hệ thống 200%</strong>. Bảng màu trừu tượng không cho thấy nhịp spacing, độ tương phản khi
+  dùng thật, và <em>không</em> cho thấy phương án nào vỡ ở máy hẹp — đó là 3 thứ chỉ lộ ra ở đây.
 </p>
 
-<div class="grid">
-
-  <!-- ═══════════════ A-calm ═══════════════ -->
-  <div class="col">
-    <div class="head"><span class="id">A-calm</span><span class="label">Calm</span></div>
-    <p class="why">Trung tính, nhiều khoảng trắng — app đọc nhiều/thao tác lâu.</p>
-    <div class="phone">
-      <div class="scr" style="background:#FBFBF9;color:#1C1D1A;font-size:16px;line-height:24px">
-        <div style="background:#FFFFFF;border-bottom:1px solid #E2E1DC;padding:16px">
-          <div style="font-size:22px;line-height:28px;font-weight:600">Đơn của tôi</div>
-        </div>
-        <div style="padding:16px;display:flex;flex-direction:column;gap:16px">
-          <div style="background:#FFFFFF;border:1px solid #E2E1DC;border-radius:12px;padding:16px">
-            <div style="font-size:13px;line-height:16px;font-weight:600;letter-spacing:.2px;color:#61635E">HÔM NAY</div>
-            <div style="font-weight:600;margin-top:8px">Combo cơm gà xối mỡ</div>
-            <div style="font-size:14px;line-height:20px;color:#61635E;margin-top:4px">2 món · 89.000đ</div>
-            <div style="display:inline-block;margin-top:8px;background:#F1F0EC;color:#2E7D4F;
-                        border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600">✓ Đã giao</div>
-          </div>
-          <div style="background:#FFFFFF;border:1px solid #E2E1DC;border-radius:12px;padding:16px">
-            <div style="font-weight:600">Trà sữa trân châu</div>
-            <div style="font-size:14px;line-height:20px;color:#61635E;margin-top:4px">1 món · 45.000đ</div>
-          </div>
-          <!-- trạng thái lỗi: bắt buộc có trong preview, không chỉ happy path -->
-          <div style="background:#FFFFFF;border:1px solid #B3261E;border-radius:12px;padding:16px">
-            <div style="color:#B3261E;font-weight:600;font-size:14px;line-height:20px">⚠ Mất kết nối</div>
-            <div style="font-size:14px;line-height:20px;color:#61635E;margin-top:4px">Không tải được đơn mới.</div>
-            <div style="margin-top:12px;border:1px solid #2F6F5F;color:#2F6F5F;border-radius:12px;
-                        padding:12px;text-align:center;font-weight:600;font-size:14px">Thử lại</div>
-          </div>
-          <div style="background:#2F6F5F;color:#FFFFFF;border-radius:12px;padding:16px;
-                      text-align:center;font-weight:600">Đặt lại đơn này</div>
-          <div style="background:#EDECE8;color:#A3A5A0;border-radius:12px;padding:16px;
-                      text-align:center;font-weight:600">Đang xử lý…</div>
-        </div>
+<template id="screen">
+  <div class="scr">
+    <div class="bar"><div class="bar-title">Đơn của tôi</div></div>
+    <div class="body">
+      <div class="card">
+        <div class="kicker">HÔM NAY</div>
+        <div class="name">Combo cơm gà xối mỡ phần lớn</div>
+        <div class="row meta"><span>2 món · 89.000đ</span><span>·</span><span>Giao 18:30</span></div>
+        <div class="chips"><span class="chip">✓ Đã giao</span><span class="chip">Đánh giá 5★</span></div>
       </div>
-    </div>
-    <div class="swatches">
-      <div class="sw" style="background:#2F6F5F"></div><div class="sw" style="background:#7A8C99"></div>
-      <div class="sw" style="background:#F1F0EC"></div><div class="sw" style="background:#2E7D4F"></div>
-      <div class="sw" style="background:#B4690E"></div><div class="sw" style="background:#B3261E"></div>
+      <div class="card alt">
+        <div class="name">Trà sữa trân châu</div>
+        <div class="meta">1 món · 45.000đ</div>
+      </div>
+      <!-- trạng thái lỗi: bắt buộc có trong preview, không chỉ happy path -->
+      <div class="err">
+        <div class="err-title">⚠ Mất kết nối</div>
+        <div class="meta">Không tải được đơn mới.</div>
+        <div class="btn ghost">Thử lại</div>
+      </div>
+      <div class="btn primary">Đặt lại đơn này</div>
+      <div class="btn off">Đang xử lý…</div>
     </div>
   </div>
+</template>
 
-  <!-- ═══════════════ B-bold ═══════════════ -->
-  <div class="col">
-    <div class="head"><span class="id">B-bold</span><span class="label">Bold</span></div>
-    <p class="why">Tương phản cao, CTA nổi — app dẫn dắt hành động mua/đặt.</p>
-    <div class="phone">
-      <div class="scr" style="background:#FFFFFF;color:#0F172A;font-size:16px;line-height:24px">
-        <div style="background:#FFFFFF;border-bottom:1px solid #DDE2EC;padding:16px">
-          <div style="font-size:22px;line-height:28px;font-weight:700;letter-spacing:-.2px">Đơn của tôi</div>
-        </div>
-        <div style="padding:16px;display:flex;flex-direction:column;gap:16px">
-          <div style="background:#F3F5FA;border-radius:14px;padding:16px">
-            <div style="font-size:14px;line-height:18px;font-weight:700;letter-spacing:.2px;color:#5A6478">HÔM NAY</div>
-            <div style="font-weight:700;margin-top:8px">Combo cơm gà xối mỡ</div>
-            <div style="font-size:14px;line-height:20px;color:#5A6478;margin-top:4px">2 món · 89.000đ</div>
-            <div style="display:inline-block;margin-top:8px;background:#12805C;color:#FFFFFF;
-                        border-radius:999px;padding:4px 10px;font-size:12px;font-weight:700">✓ Đã giao</div>
-          </div>
-          <div style="background:#F3F5FA;border-radius:14px;padding:16px">
-            <div style="font-weight:700">Trà sữa trân châu</div>
-            <div style="font-size:14px;line-height:20px;color:#5A6478;margin-top:4px">1 món · 45.000đ</div>
-          </div>
-          <div style="background:#FFFFFF;border:2px solid #DC2626;border-radius:14px;padding:16px">
-            <div style="color:#DC2626;font-weight:700;font-size:14px;line-height:20px">⚠ Mất kết nối</div>
-            <div style="font-size:14px;line-height:20px;color:#5A6478;margin-top:4px">Không tải được đơn mới.</div>
-            <div style="margin-top:12px;border:2px solid #1A56DB;color:#1A56DB;border-radius:14px;
-                        padding:12px;text-align:center;font-weight:700;font-size:14px">Thử lại</div>
-          </div>
-          <div style="background:#1A56DB;color:#FFFFFF;border-radius:14px;padding:16px;
-                      text-align:center;font-weight:700;box-shadow:0 2px 6px #1A56DB55">Đặt lại đơn này</div>
-          <div style="background:#EEF1F6;color:#98A1B2;border-radius:14px;padding:16px;
-                      text-align:center;font-weight:700">Đang xử lý…</div>
-        </div>
-      </div>
-    </div>
-    <div class="swatches">
-      <div class="sw" style="background:#1A56DB"></div><div class="sw" style="background:#F59E0B"></div>
-      <div class="sw" style="background:#F3F5FA"></div><div class="sw" style="background:#12805C"></div>
-      <div class="sw" style="background:#B45309"></div><div class="sw" style="background:#DC2626"></div>
-    </div>
-  </div>
-
-  <!-- ═══════════════ C-dense ═══════════════ -->
-  <div class="col">
-    <div class="head"><span class="id">C-dense</span><span class="label">Dense</span></div>
-    <p class="why">Nhiều dữ liệu trên 1 màn — app tra cứu/quản lý số liệu.</p>
-    <div class="phone">
-      <div class="scr" style="background:#F7F8FA;color:#141A21;font-size:15px;line-height:22px">
-        <div style="background:#FFFFFF;border-bottom:1px solid #D9DEE5;padding:12px">
-          <div style="font-size:20px;line-height:26px;font-weight:600">Đơn của tôi</div>
-        </div>
-        <div style="padding:12px;display:flex;flex-direction:column;gap:12px">
-          <div style="background:#FFFFFF;border:1px solid #D9DEE5;border-radius:8px;padding:12px">
-            <div style="font-size:12px;line-height:16px;font-weight:600;letter-spacing:.3px;color:#5A6572">HÔM NAY</div>
-            <div style="font-weight:600;margin-top:6px">Combo cơm gà xối mỡ</div>
-            <div style="font-size:13px;line-height:18px;color:#5A6572;margin-top:2px">2 món · 89.000đ</div>
-            <div style="display:inline-block;margin-top:6px;background:#EDF0F4;color:#0F7A4F;
-                        border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600">✓ Đã giao</div>
-          </div>
-          <div style="background:#FFFFFF;border:1px solid #D9DEE5;border-radius:8px;padding:12px">
-            <div style="font-weight:600">Trà sữa trân châu</div>
-            <div style="font-size:13px;line-height:18px;color:#5A6572;margin-top:2px">1 món · 45.000đ</div>
-          </div>
-          <div style="background:#FFFFFF;border:1px solid #C0271F;border-radius:8px;padding:12px">
-            <div style="color:#C0271F;font-weight:600;font-size:13px;line-height:18px">⚠ Mất kết nối</div>
-            <div style="font-size:13px;line-height:18px;color:#5A6572;margin-top:2px">Không tải được đơn mới.</div>
-            <div style="margin-top:12px;border:1px solid #0B5FA5;color:#0B5FA5;border-radius:8px;
-                        padding:12px;text-align:center;font-weight:600;font-size:13px">Thử lại</div>
-          </div>
-          <div style="background:#0B5FA5;color:#FFFFFF;border-radius:8px;padding:12px;
-                      text-align:center;font-weight:600">Đặt lại đơn này</div>
-          <div style="background:#E9ECF1;color:#9AA3AF;border-radius:8px;padding:12px;
-                      text-align:center;font-weight:600">Đang xử lý…</div>
-        </div>
-      </div>
-    </div>
-    <div class="swatches">
-      <div class="sw" style="background:#0B5FA5"></div><div class="sw" style="background:#5B6B7C"></div>
-      <div class="sw" style="background:#EDF0F4"></div><div class="sw" style="background:#0F7A4F"></div>
-      <div class="sw" style="background:#9A5B00"></div><div class="sw" style="background:#C0271F"></div>
-    </div>
-  </div>
-
-</div>
+<div id="matrix"></div>
 
 <p class="foot">
   Mỗi phương án PHẢI render đủ: 1 màn list, 1 card, 1 CTA chính, 1 nút phụ, 1 <strong>trạng thái lỗi</strong>,
-  1 <strong>trạng thái disabled/loading</strong> — nếu thiếu thì người chọn bằng cảm giác màu chứ không thấy
-  được app dùng thật ra sao (đúng lý do file này tồn tại thay vì 1 bảng màu).<br>
+  1 <strong>trạng thái disabled/loading</strong> (Gate 7 điều 4) — và đủ 3 bề rộng + 1 lượt cỡ chữ 200%
+  (Gate 7 điều 8). Thiếu trạng thái thì người chọn bằng cảm giác màu; thiếu bề rộng thì chọn xong mới biết
+  nhịp spacing của phương án đó không đủ chỗ ở máy hẹp.<br>
   Chốt: <code>python kernel/tools/resume.py PROJ-design-system --decision A-calm --note "..."</code>
 </p>
+
+<script>
+// design-system sinh lại 2 mảng dưới theo phương án thật; cơ chế render giữ nguyên.
+const THEMES = [
+  { id: "A-calm",  label: "Calm",  why: "Trung tính, nhiều khoảng trắng — app đọc nhiều/thao tác lâu.",
+    swatches: ["#2F6F5F","#7A8C99","#F1F0EC","#2E7D4F","#B4690E","#B3261E"] },
+  { id: "B-bold",  label: "Bold",  why: "Tương phản cao, CTA nổi — app dẫn dắt hành động mua/đặt.",
+    swatches: ["#1A56DB","#F59E0B","#F3F5FA","#12805C","#B45309","#DC2626"] },
+  { id: "C-dense", label: "Dense", why: "Nhiều dữ liệu trên 1 màn — app tra cứu/quản lý số liệu.",
+    swatches: ["#0B5FA5","#5B6B7C","#EDF0F4","#0F7A4F","#9A5B00","#C0271F"] },
+];
+
+// Bậc lấy từ shared/design/tokens.json -> responsive_contract.breakpoints_dp.
+// 320 = min_supported_width_dp; 393 = máy phổ biến; 600 = mốc medium của M3.
+// Lượt cuối: hẹp nhất + cỡ chữ 200% (limits.json -> responsive.required_font_scale).
+const VARIANTS = [
+  { w: 320, fs: 1,   cap: "320dp",            note: "compact_small — máy hẹp nhất cam kết hỗ trợ" },
+  { w: 393, fs: 1,   cap: "393dp",            note: "compact — máy phổ biến" },
+  { w: 600, fs: 1,   cap: "600dp",            note: "mốc medium (M3)" },
+  { w: 320, fs: 2,   cap: "320dp @ cỡ chữ 200%", note: "chữ phóng, nhịp KHÔNG phóng", warn: true },
+];
+
+const tpl = document.getElementById("screen");
+const root = document.getElementById("matrix");
+
+for (const t of THEMES) {
+  const row = document.createElement("div");
+  row.className = "theme-row";
+  row.innerHTML = `<div class="head"><span class="id">${t.id}</span>` +
+                  `<span class="label">${t.label}</span></div>` +
+                  `<p class="why">${t.why}</p>`;
+
+  const frames = document.createElement("div");
+  frames.className = "frames";
+  for (const v of VARIANTS) {
+    const f = document.createElement("div");
+    f.className = "frame";
+    f.innerHTML = `<div class="cap${v.warn ? " warn" : ""}"><b>${v.cap}</b> — ${v.note}</div>`;
+    const phone = document.createElement("div");
+    phone.className = "phone theme-" + t.id;
+    phone.style.width = v.w + "px";
+    const scr = tpl.content.cloneNode(true);
+    scr.querySelector(".scr").style.setProperty("--fs", v.fs);
+    phone.appendChild(scr);
+    f.appendChild(phone);
+    frames.appendChild(f);
+  }
+  row.appendChild(frames);
+
+  const sw = document.createElement("div");
+  sw.className = "swatches";
+  sw.innerHTML = t.swatches.map(c => `<div class="sw" style="background:${c}"></div>`).join("");
+  row.appendChild(sw);
+
+  root.appendChild(row);
+}
+</script>
 
 </body>
 </html>

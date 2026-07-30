@@ -739,7 +739,7 @@ def check_design_prereqs():
             err("E12", f"shared/contracts/tech-stack.json: JSON khong parse duoc — {e}")
 
 
-# ─────────── I. Screen layout: tung component kiem rieng (E13-E21) ───────────
+# ─────────── I. Screen layout: tung component kiem rieng (E13-E22) ───────────
 # Cuong che kernel/contracts/screen-layout.schema.json o phan JSON Schema KHONG bieu dien duoc:
 # rang buoc LIEN entry (ref co ton tai that khong, parent co tao vong khong) va static design
 # metrics (dung 1 primary moi state, so co chu / so mau / nhip spacing).
@@ -749,6 +749,13 @@ def check_design_prereqs():
 # xu ly, nut bam dan toi state khong ton tai, input khong validation, text dai lam vo bo cuc.
 # Ca 2 lop loi nay (logic + hien thi) lo ra o Gate 4 (QA) hoac o nguoi dung that, trong khi
 # chung kiem duoc ngay o tang du lieu — TRUOC khi mobile-screen sinh 1 dong code nao.
+#
+# NHOM E22 (kich thuoc man hinh) them sau, cung ly do nhung o muc KHOI thay vi muc text:
+# truoc do ca hop dong khong co 1 field nao ve be rong/huong/co chu — lever duy nhat la
+# string tu do `group` — nen "vo o may 320dp", "cat chu o co chu 200%", "ban phim che nut
+# Gui", "bar dinh nam duoi gesture bar" la lop loi DUY NHAT trong nhom hien thi ma khong ma
+# nao bat duoc. Bac/huong bat buoc doc tu tokens.json -> responsive_contract (quyet dinh cua
+# PROJECT theo system-spec.md), tran co dinh doc tu limits.json -> responsive.
 #
 # NGUYEN TAC do luong: metric duoc SUY RA tu style that cua tung component, KHONG tin
 # design_metrics_declared. Field declared chi dung de doi chieu: khai lech voi thuc te nghia la
@@ -760,6 +767,59 @@ _INPUT_TYPES = {"input", "select", "search_field"}
 _TEXT_TYPES = {"text", "badge"}
 _OVERLAY_TYPES = {"sheet", "dialog", "snackbar", "tooltip", "menu"}
 _ACTION_NEEDS_TARGET = {"navigate", "submit", "retry"}
+
+# Nhom E22 (kich thuoc man hinh). Khoi CHUA + type nhay kich thuoc PHAI khai `responsive`:
+# do la 2 loai component quyet dinh bo cuc co vo hay khong khi be rong doi.
+_CONTAINER_TYPES = {"section", "card", "list", "grid", "row", "column"}
+_SIZE_SENSITIVE_TYPES = {"image", "chart", "media_player"}
+_HORIZONTAL_AXES = {"horizontal", "grid"}
+_TIER_ORDER = ["compact_small", "compact", "medium", "expanded"]
+
+
+def _responsive_contract():
+    """responsive_contract trong tokens.json, hoac None neu chua co / chua khoa.
+
+    Tra None thi cac check phu thuoc quyet dinh CUA PROJECT (bac nao bat buoc, huong nao
+    bat buoc) bi bo qua — dung cach ham check_screen_layouts da xu ly repo template o I1.
+    Cac check KHONG phu thuoc project (wrap_behavior, degrade_order, min_height_dp quanh
+    text, pinned + safe_area) van chay binh thuong.
+    """
+    p = rel("shared", "design", "tokens.json")
+    if not os.path.exists(p):
+        return None
+    try:
+        rc = json.load(open(p, encoding="utf-8")).get("responsive_contract")
+    except Exception:
+        return None  # loi parse tokens.json da duoc bao o cho khac
+    return rc if isinstance(rc, dict) else None
+
+
+def _children_map(comps):
+    """parent_id -> [component_id con], theo dung thu tu xuat hien."""
+    kids = {}
+    for c in comps:
+        if isinstance(c, dict) and c.get("component_id"):
+            kids.setdefault(c.get("parent"), []).append(c["component_id"])
+    return kids
+
+
+def _holds_text(cid, comps_by_id, kids):
+    """Khoi nay co chua component type text/badge (truc tiep hoac qua con) khong.
+
+    Dung de chan `min_height_dp` khac null quanh text: khoa chieu cao quanh text = chu bi
+    cat ngay khi nguoi dung bat co chu he thong 200%. Duyet co gioi han depth de an toan
+    voi vong parent (vong da duoc bao rieng o E15).
+    """
+    stack, seen = list(kids.get(cid, [])), set()
+    while stack:
+        k = stack.pop()
+        if k in seen:
+            continue
+        seen.add(k)
+        if (comps_by_id.get(k) or {}).get("type") in _TEXT_TYPES:
+            return True
+        stack.extend(kids.get(k, []))
+    return False
 
 
 def _registry_categories():
@@ -817,6 +877,15 @@ def check_screen_layouts(limits):
     max_span = dl.get("max_spacing_scale_span", 4)
     scale_order = dl.get("spacing_scale_order") or ["xs", "sm", "md", "lg", "xl", "xxl"]
     max_primary = dl.get("max_primary_emphasis_per_state", 1)
+    rl = ((limits or {}).get("responsive") or {})
+    max_kids_no_degrade = rl.get("max_children_without_degrade_order", 3)
+    max_cols_compact = rl.get("max_columns_compact", 2)
+    max_pinned = rl.get("max_pinned_regions_per_state", 2)
+    need_font_scale = rl.get("required_font_scale", 2.0)
+    contract = _responsive_contract()
+    req_tiers = list((contract or {}).get("required_tiers") or [])
+    req_orients = list((contract or {}).get("target_orientations") or [])
+    known_tiers = set(((contract or {}).get("breakpoints_dp") or {}).keys()) or set(_TIER_ORDER)
     registry_cats = _registry_categories()
 
     for path in files:
@@ -835,7 +904,7 @@ def check_screen_layouts(limits):
         # 'data_bindings' phang o goc (cach viet CU, truoc khi binding chuyen vao tung component)
         # se lot im lang: vua sai schema vua khong ai bao.
         allowed_root = {"schema_version", "screen_id", "states", "components", "ad_slots",
-                        "design_metrics_declared"}
+                        "design_metrics_declared", "responsive_declared"}
         unknown = {k for k in layout if not k.startswith("_")} - allowed_root
         if unknown:
             err("E13", f"shared/design/screens/{name}: key la o goc {sorted(unknown)} — schema "
@@ -895,6 +964,11 @@ def check_screen_layouts(limits):
         type_keys, color_keys, spacing_keys = set(), set(), set()
         primary_per_state = {sid: 0 for sid in state_ids}
         root_count = 0
+        comps_by_id = {c["component_id"]: c for c in comps
+                       if isinstance(c, dict) and c.get("component_id")}
+        kids = _children_map(comps)
+        pinned_per_state = {sid: 0 for sid in state_ids}
+        has_input = any(isinstance(c, dict) and c.get("type") in _INPUT_TYPES for c in comps)
 
         for c in comps:
             if not isinstance(c, dict):
@@ -968,6 +1042,89 @@ def check_screen_layouts(limits):
                 err("E17", f"{where} type={ctype} thieu 'text_overflow' -> noi dung dai se lam vo "
                            f"bo cuc, mock data ten ngan khong bao gio phat hien ra")
 
+            # --- lop loi KICH THUOC MAN HINH (E22) ---
+            # Cung vai tro text_overflow dong cho text, nhung o muc KHOI: mock data tren may
+            # 393dp khong bao gio lo ra 'row nay tran ngang o 320dp' hay 'khoi nay cat chu o
+            # co chu 200%'. Do la lop loi duy nhat trong nhom hien thi ma truoc day khong ma
+            # nao bat duoc, du no kiem duoc hoan toan o tang du lieu.
+            resp = c.get("responsive")
+            n_kids = len(kids.get(cid, []))
+            if ctype in _CONTAINER_TYPES or ctype in _SIZE_SENSITIVE_TYPES or n_kids:
+                if not isinstance(resp, dict):
+                    err("E22", f"{where} type={ctype} ({n_kids} con) thieu 'responsive' -> khong "
+                               f"biet be rong doi thi khoi nay wrap/co/bo cai gi, layout se vo o "
+                               f"may hep hoac o co chu he thong 200%")
+                    resp = None
+            if isinstance(resp, dict):
+                axis = resp.get("axis")
+                wrap = resp.get("wrap_behavior")
+                cols = resp.get("columns")
+
+                if axis in _HORIZONTAL_AXES and n_kids > 1 and wrap == "none":
+                    err("E22", f"{where} axis={axis} co {n_kids} con nhung wrap_behavior='none' "
+                               f"-> khang dinh khong bao gio het cho, thuc te tran ngang o "
+                               f"{rl.get('min_supported_width_dp', 320)}dp. Chon wrap / "
+                               f"scroll_horizontal / stack_vertical / shrink")
+
+                if axis in _HORIZONTAL_AXES and not isinstance(cols, dict):
+                    err("E22", f"{where} axis={axis} nhung khong khai 'columns' theo bac -> "
+                               f"mobile-screen tu doan so cot, moi story doan mot kieu")
+                elif isinstance(cols, dict):
+                    bad_tier = {k for k in cols if not k.startswith("_")} - known_tiers
+                    if bad_tier:
+                        err("E22", f"{where} columns co bac la {sorted(bad_tier)} -> khong ton tai "
+                                   f"trong tokens.json -> responsive_contract.breakpoints_dp")
+                    for t in req_tiers:
+                        if cols.get(t) is None:
+                            err("E22", f"{where} columns thieu bac bat buoc {t!r} (theo "
+                                       f"responsive_contract.required_tiers) -> bac nay khong ai "
+                                       f"quyet dinh so cot")
+                    seq = [(t, cols.get(t)) for t in _TIER_ORDER
+                           if isinstance(cols.get(t), int)]
+                    for (t1, v1), (t2, v2) in zip(seq, seq[1:]):
+                        if v2 < v1:
+                            err("E22", f"{where} columns {t1}={v1} nhung {t2}={v2} -> man RONG hon "
+                                       f"lai IT cot hon, khong don dieu; gan nhu chac chan khai "
+                                       f"nguoc bac")
+                    for t in ("compact_small", "compact"):
+                        v = cols.get(t)
+                        if isinstance(v, int) and v > max_cols_compact:
+                            err("E22", f"{where} columns.{t}={v} vuot tran {max_cols_compact} cho "
+                                       f"bac < 600dp -> moi cot con qua hep de chua noi dung that")
+
+                degrade = resp.get("degrade_order") or []
+                if not isinstance(degrade, list):
+                    err("E22", f"{where} 'degrade_order' phai la mang component_id")
+                else:
+                    for did in degrade:
+                        if did not in comp_ids:
+                            err("E22", f"{where} degrade_order tro toi {did!r} KHONG ton tai")
+                        elif (comps_by_id.get(did) or {}).get("parent") != cid:
+                            err("E22", f"{where} degrade_order tro toi {did!r} nhung do khong phai "
+                                       f"CON cua khoi nay -> khong the bo mot thu khoi khac so huu")
+                    if n_kids > max_kids_no_degrade and not degrade:
+                        err("E22", f"{where} co {n_kids} con (tran {max_kids_no_degrade}) nhung "
+                                   f"'degrade_order' rong -> khi het cho mobile-screen tu chon cai "
+                                   f"gi bi cat, va no se cat DU LIEU truoc khi cat NHAN")
+
+                if resp.get("sizing") == "aspect_ratio" and not resp.get("aspect_ratio"):
+                    err("E22", f"{where} sizing=aspect_ratio nhung thieu 'aspect_ratio' -> anh/"
+                               f"video bi bop meo hoac bi bake letterbox vao khung noi dung")
+
+                if resp.get("min_height_dp") is not None and (
+                        ctype in _TEXT_TYPES or _holds_text(cid, comps_by_id, kids)):
+                    err("E22", f"{where} min_height_dp={resp['min_height_dp']} nhung khoi nay chua "
+                               f"text/badge -> khoa chieu cao quanh text la cat chu ngay khi nguoi "
+                               f"dung bat co chu he thong {need_font_scale}x (dat null)")
+
+                if resp.get("pinned") is True:
+                    if resp.get("safe_area") in (None, "none"):
+                        err("E22", f"{where} pinned=true nhung safe_area='none' -> bar dinh bien "
+                                   f"nam duoi notch/gesture bar, nguoi dung bam khong trung")
+                    for sid in (ais if isinstance(ais, list) else []):
+                        if sid in pinned_per_state:
+                            pinned_per_state[sid] += 1
+
             a11y = c.get("a11y")
             if ctype in _CONTROL_TYPES:
                 if not isinstance(a11y, dict) or a11y.get("min_tap_target_ok") is not True:
@@ -1020,6 +1177,46 @@ def check_screen_layouts(limits):
         if idx and (max(idx) - min(idx)) > max_span:
             err("E20", f"shared/design/screens/{name}: spacing dung {sorted(spacing_keys)} trai "
                        f"{max(idx) - min(idx)} bac tren scale (nguong {max_span}) -> mat nhip")
+
+        # --- E22 o muc MAN HINH: da nghi cho nhung bac/huong/co chu nao ---
+        # Cung nguyen tac design_metrics_declared: khai bang SO de doi chieu duoc, khong phai
+        # cau "da responsive". Bac/huong bat buoc la quyet dinh CUA PROJECT (system-spec.md ->
+        # design-system -> responsive_contract), khong phai hang so trong validator.
+        for sid, n in pinned_per_state.items():
+            if n > max_pinned:
+                err("E22", f"shared/design/screens/{name}: state {sid!r} co {n} vung pinned (tran "
+                           f"{max_pinned}) -> phan noi dung cuon duoc con lai qua nho, o landscape "
+                           f"thi gan nhu khong con gi")
+
+        rd = layout.get("responsive_declared")
+        if not isinstance(rd, dict):
+            err("E22", f"shared/design/screens/{name}: thieu 'responsive_declared' -> khong biet "
+                       f"layout nay da duoc nghi cho bac kich thuoc / huong / co chu nao")
+        else:
+            tiers = rd.get("tiers_covered") or []
+            bad_tier = set(tiers) - known_tiers
+            if bad_tier:
+                err("E22", f"shared/design/screens/{name}: responsive_declared.tiers_covered co bac "
+                           f"la {sorted(bad_tier)} -> khong ton tai trong responsive_contract."
+                           f"breakpoints_dp")
+            missing = [t for t in req_tiers if t not in tiers]
+            if missing:
+                err("E22", f"shared/design/screens/{name}: tiers_covered thieu bac bat buoc "
+                           f"{missing} (responsive_contract.required_tiers) -> man hinh nay chua "
+                           f"duoc nghi cho kich thuoc ma project cam ket ho tro")
+            missing_o = [o for o in req_orients if o not in (rd.get("orientations") or [])]
+            if missing_o:
+                err("E22", f"shared/design/screens/{name}: orientations thieu {missing_o} "
+                           f"(responsive_contract.target_orientations)")
+            fs = rd.get("font_scale_verified")
+            if not isinstance(fs, (int, float)) or fs < need_font_scale:
+                err("E22", f"shared/design/screens/{name}: font_scale_verified={fs!r} < nguong "
+                           f"{need_font_scale} -> co chu he thong 200% la muc nguoi dung dat duoc "
+                           f"that, khong phai truong hop bien")
+            if rd.get("keyboard_avoidance") == "not_applicable" and has_input:
+                err("E22", f"shared/design/screens/{name}: keyboard_avoidance='not_applicable' "
+                           f"nhung man co input/select/search_field -> ban phim se che dung cai nut "
+                           f"Gui va khong test nao bat duoc")
 
         decl = layout.get("design_metrics_declared")
         if isinstance(decl, dict):

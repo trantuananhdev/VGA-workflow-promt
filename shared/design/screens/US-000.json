@@ -1,6 +1,6 @@
 {
   "_comment": "VI DU MAU — xoa file nay khi project that bat dau. Giu de lam ban tham chieu duy nhat cho kernel/contracts/screen-layout.schema.json (truoc day thu muc nay rong, khong co vi du nao doi chieu). Trung quy uoc US-000 dang dung o shared/PRD.md va shared/contracts/domain-map.json.",
-  "_demonstrates": "Man danh sach san pham e-commerce: 4 state (loading/success/empty/error), card duoc BE thanh tung phan ben trong qua field parent (card -> card_img/card_name/card_price) de moi phan kiem duoc rieng, moi bind co on_null, moi text co text_overflow, state loi co recovery_action + nut retry tro ve state ton tai that. state 'loaded' co 0 primary — HOP LE va co y: man danh sach khong nen nang 1 card len tren cac card khac (xem design_patterns/e-commerce-marketplace muc 2).",
+  "_demonstrates": "Man danh sach san pham e-commerce: 4 state (loading/success/empty/error), card duoc BE thanh tung phan ben trong qua field parent (card -> card_img/card_name/card_price) de moi phan kiem duoc rieng, moi bind co on_null, moi text co text_overflow, state loi co recovery_action + nut retry tro ve state ton tai that. state 'loaded' co 0 primary — HOP LE va co y: man danh sach khong nen nang 1 card len tren cac card khac (xem design_patterns/e-commerce-marketplace muc 2). Va: moi khoi chua khai `responsive` (2 cot o bac < 600dp theo M3 compact, anh card giu ti le 1:1, min_height_dp = null vi khoi co chua text) + `responsive_declared` o goc — day la lop chan 'layout vo o may 320dp / o co chu he thong 200%'.",
   "schema_version": 1,
   "screen_id": "US-000",
   "states": [
@@ -48,6 +48,22 @@
       "emphasis": "secondary",
       "order": 1,
       "parent": null,
+      "responsive": {
+        "axis": "grid",
+        "columns": {
+          "compact_small": 1,
+          "compact": 2,
+          "medium": 3,
+          "expanded": 4
+        },
+        "wrap_behavior": "wrap",
+        "degrade_order": [],
+        "sizing": "fill",
+        "min_height_dp": null,
+        "safe_area": "horizontal",
+        "pinned": false,
+        "_why": "1 cot duoi 360dp: 2 cot tren may 320dp thi moi cot ~150dp, khong du cho anh 1:1 + ten 2 dong + gia. Tu 360dp tro len moi len 2 cot (M3 compact)."
+      },
       "pattern_ref": "design_patterns/e-commerce-marketplace#1",
       "style": {
         "pad": "token:spacing.md"
@@ -62,6 +78,16 @@
       "emphasis": "secondary",
       "order": 1,
       "parent": "product_list",
+      "responsive": {
+        "axis": "vertical",
+        "wrap_behavior": "none",
+        "degrade_order": [],
+        "sizing": "fill",
+        "min_height_dp": null,
+        "safe_area": "none",
+        "pinned": false,
+        "_why": "min_height_dp PHAI null: card chua card_name/card_price nen khoa chieu cao la cat chu ngay o co chu 200%. wrap_behavior='none' hop le vi truc doc, khong co chuyen het cho ngang."
+      },
       "style": {
         "bg": "token:color.surface",
         "pad": "token:spacing.sm"
@@ -76,6 +102,16 @@
       "emphasis": "secondary",
       "order": 1,
       "parent": "card",
+      "responsive": {
+        "axis": "none",
+        "wrap_behavior": "none",
+        "sizing": "aspect_ratio",
+        "aspect_ratio": "1:1",
+        "min_height_dp": null,
+        "safe_area": "none",
+        "pinned": false,
+        "_why": "Giu ti le thay vi chieu cao co dinh: cot hep di thi anh nho theo, khong bi bop meo (design_patterns/e-commerce-marketplace muc 3)."
+      },
       "style": {
         "radius": "token:radius.sm"
       },
@@ -175,6 +211,20 @@
     }
   ],
   "ad_slots": [],
+  "responsive_declared": {
+    "_why": "Khai bang SO de validate.py doi chieu voi tokens.json -> responsive_contract, khong phai cau 'da responsive'. keyboard_avoidance='not_applicable' hop le vi man nay khong co input/select/search_field.",
+    "tiers_covered": [
+      "compact_small",
+      "compact",
+      "medium",
+      "expanded"
+    ],
+    "orientations": [
+      "portrait"
+    ],
+    "font_scale_verified": 2.0,
+    "keyboard_avoidance": "not_applicable"
+  },
   "design_metrics_declared": {
     "distinct_type_sizes": 2,
     "distinct_colors": 2,

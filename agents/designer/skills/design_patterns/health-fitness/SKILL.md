@@ -57,3 +57,17 @@ Ring hero đường kính **40–48% chiều rộng màn**: nhỏ hơn ~30% thì
 - **Tier 3** (ảnh store công khai): bố cục "1 ring hero + tường tile 2 cột" là convention phổ biến của nhóm app này.
 - **SUY ĐOÁN của tôi, chưa có tier 1–3 chống lưng** (đọc lại khi review): mọi con số % viewport và % chiều rộng ở mục 1; thứ tự bỏ nhãn khi hẹp; ngưỡng 56dp cho quick-log lặp; timing 400–600ms fill và ≤800ms celebration; quy ước ô ngày chưa đạt dùng viền mảnh; tỉ lệ track 8–12% đường kính ring.
 - **KHÔNG trích:** hex màu thương hiệu, logo/wordmark, bộ icon độc quyền, copy nguyên văn, tên app cụ thể. Mô tả cấu trúc — không viết "làm giống \<app\>".
+
+## 6. Thich ung kich thuoc man hinh
+
+> Dien `components[].responsive` theo muc nay; co che va thu tu degrade chung o `agents/designer/skills/responsive_layout/SKILL.md`. Cac con so duoi thuoc dien **SUY DOAN** cua muc 5 tru khi ghi ro tier 1.
+
+**Cot:** tuong chi so phu (dai D) `compact_small` **1** cot / `compact` **2** / `medium` 3. O 320dp thi 2 o chi so con ~145dp — con so + nhan + don vi bi cat, nen ha ve 1 cot dang hang ngang (nhan trai, so phai).
+
+**Ring hero:** `sizing: aspect_ratio` **1:1**, duong kinh theo **40-48% be rong man** (khong phai dp co dinh). Duoi nguong ~30% thi so o tam het doc duoc -> doi sang thanh ngang voi so dat NGOAI thanh; day la quy tac o muc 1, va no chinh la mot nuoc degrade.
+
+**Chart — degrade_order (day la nguon cua quy tac tong quat o responsive_layout muc 4):** gridline phu -> nhan Y trung gian (giu min/max) -> nhan X con `dau · cuoi · hom nay` -> cuoi cung moi giam mat do diem du lieu. **Khong bao gio giam du lieu truoc khi giam nhan.** O ~360dp kha dung: toi da 5-7 nhan truc X.
+
+**Plot:** `min_height_dp` cho vung plot la ngoai le duy nhat duoc phep khac null (~200dp o muc 1) — vi plot **khong chua text**. Truc X va tom tat bang loi la component rieng, va chung PHAI `min_height_dp: null`.
+
+**Landscape:** hero 30-38% viewport tinh theo chieu cao portrait; o landscape chuyen hero + dai C thanh 2 khoi ngang, khong keo hero cao het man.

@@ -58,3 +58,19 @@
 - **Tier 3** (ảnh store công khai): bố cục "hero bài kế tiếp đặt trên tường thống kê" là convention phổ biến của nhóm app học.
 - **SUY ĐOÁN của tôi, chưa có tier 1–3 chống lưng** (đọc lại khi review): mọi con số % viewport ở mục 1; row 56–72dp; rail indent 40–48dp; nhịp 2× giữa 2 chương; quy tắc "đáp án luôn 1 cột"; các mốc timing ở mục 4; hướng slide theo chiều tiến; tỉ lệ type 1.2–1.3× giữa câu hỏi và đáp án.
 - **KHÔNG trích:** hex màu thương hiệu, logo/wordmark, linh vật/illustration độc quyền, bộ icon riêng, copy nguyên văn, tên app cụ thể. Mô tả cấu trúc — không viết "làm giống \<app\>".
+
+## 6. Thich ung kich thuoc man hinh
+
+> Dien `components[].responsive` theo muc nay; co che va thu tu degrade chung o `agents/designer/skills/responsive_layout/SKILL.md`. Cac con so duoi thuoc dien **SUY DOAN** cua muc 5 tru khi ghi ro tier 1.
+
+**Cot:** dap an quiz **luon 1 cot full-width o moi bac** (2 cot chi khi dap an la anh hoac <=3 ky tu — muc 1). Day la rang buoc **khong** duoc noi long khi man rong hon: `columns` `compact_small: 1, compact: 1, medium: 1`.
+
+**Dap an KHONG BAO GIO ellipsis:** text dap an `wrap_behavior: "wrap"` + `text_overflow.max_lines: null` — cat dap an la lam sai bai. Va vi vay khoi chua dap an PHAI `min_height_dp: null` du muc 1 goi y >=56dp; 56dp la san, khong phai tran.
+
+**Degrade trong row bai hoc:** thoi luong -> icon loai noi dung -> mo ta phu. **Khong bao gio**: ten bai va trang thai hoan thanh. Indent rail 40-48dp o `compact_small` ha ve 32dp, KHONG bo rail (rail la thu tao cam giac tuan tu).
+
+**Card "Bai ke tiep" (hero, 22-28% viewport):** `sizing: fill` + `min_height_dp: null` — o co chu 200% ten bai dai 3 dong phai day card cao ra, khong duoc cat.
+
+**Thanh tien do "4/10":** `pinned: true` + `safe_area: "top"`. Nut xac nhan dinh bottom: `pinned: true` + `safe_area: "bottom"`, va `keyboard_avoidance: "scroll_content"` voi cau hoi dang nhap dap an.
+
+**Landscape / medium:** man chi tiet khoa chuyen header + muc luc thanh 2 cot (header trai, muc luc phai). Man quiz giu 1 cot o moi huong — 2 cot lam mat quan he cau hoi -> dap an.

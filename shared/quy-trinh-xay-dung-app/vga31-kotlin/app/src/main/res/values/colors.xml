@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF4A4A4A</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Notification text colors (light) -->
+    <color name="notification_text_primary">#FF000000</color>
+    <color name="notification_text_secondary">#FF757575</color>
+    <color name="notification_text_tertiary">#FF9E9E9E</color>
+
+    <!-- ===== base-application (lib) yêu cầu: primaryColor == accentTone; text1 (spec §5.1) ===== -->
+    <!-- Tông khớp app RN vga31b (COLOR.THEME = #007BFF). -->
+    <color name="primaryColor">#007BFF</color>
+    <color name="accentTone">#007BFF</color>
+    <color name="text1">#212121</color>
+</resources>

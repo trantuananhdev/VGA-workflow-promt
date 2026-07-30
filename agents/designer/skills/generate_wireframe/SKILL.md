@@ -26,9 +26,11 @@
    b) CRAFT (cái gì ĐẸP) — CHỈ domain `primary`, không nạp domain phụ:
       đọc agents/designer/skills/design_patterns/<primary>/SKILL.md
       -> mục 1 bố cục, mục 2 hierarchy/emphasis, mục 3 cấu trúc bên trong component,
-         mục 4 interaction & motion
-      LƯU Ý: mục 5 của file đó ghi rõ phần nào là SUY ĐOÁN (chưa có spec chống lưng).
-      Số nào là suy đoán thì điều chỉnh theo tokens.json của project, đừng bám cứng.
+         mục 4 interaction & motion, mục 6 thích ứng kích thước (dùng ở bước 3.7)
+      LƯU Ý: mục 5 của file đó ghi rõ phần nào là SUY ĐOÁN (chưa có spec chống lưng),
+      và tuyên bố đó áp cả cho số trong mục 6 (mục 6 cố ý đứng sau mục 5 — xem
+      design_patterns/SKILL.md). Số nào là suy đoán thì điều chỉnh theo tokens.json
+      của project, đừng bám cứng.
 
    c) Thiếu thư mục cho 1 tag -> lúc đó MỚI đọc file index tương ứng để làm bootstrap
       `draft: true` (2 thư viện có cơ chế riêng, cùng nguyên tắc).
@@ -55,6 +57,14 @@
    component_discovery bước A (core reuse-check) rồi B (mini search) — chạy SAU bước
    này, TRƯỚC bước 4.
 
+3.7. KHAI KÍCH THƯỚC MÀN HÌNH — gọi skill responsive_layout.
+   Đọc agents/designer/skills/responsive_layout/SKILL.md + mục 6 của file pattern primary,
+   rồi điền `responsive` cho MỌI khối chứa (section/card/list/grid/row/column) và mọi
+   image/chart/media_player, cộng `responsive_declared` ở gốc.
+   VÌ SAO Ở ĐÂY, KHÔNG PHẢI TRONG BƯỚC 4: biết trước "hàng này phải wrap ở 320dp" hoặc
+   "khối này không được khoá chiều cao" có thể đổi cả cách bẻ component ở bước 3.5 —
+   khai sau khi đã chốt cây thì luôn thành "điền cho đủ field".
+
 4. Sinh layout JSON — CHỈ sau khi mọi component_need đã resolve. Dùng bảng field ngay
    dưới mục "Quy trình" này làm chuẩn; KHÔNG cần mở
    kernel/contracts/screen-layout.schema.json (file đó ~7000 token, dành cho
@@ -70,7 +80,9 @@
 
 ## Bảng field layout JSON — đủ để viết, không cần mở schema
 
-Gốc: `{ schema_version: 1, screen_id, states[], components[], ad_slots[], design_metrics_declared }` — **không có key nào khác** (mã `E13` bắt key lạ). Binding nằm **trong từng component**, không có mảng `data_bindings` phẳng ở gốc.
+Gốc: `{ schema_version: 1, screen_id, states[], components[], ad_slots[], responsive_declared, design_metrics_declared }` — **không có key nào khác** (mã `E13` bắt key lạ).
+
+`responsive_declared` (bắt buộc, khai ở bước 3.7): `{ tiers_covered[], orientations[], font_scale_verified, keyboard_avoidance }` — phải phủ đủ `required_tiers`/`target_orientations` của `responsive_contract`, `font_scale_verified` ≥ 2.0, và `keyboard_avoidance: "not_applicable"` chỉ hợp lệ khi màn không có input/select/search_field. Binding nằm **trong từng component**, không có mảng `data_bindings` phẳng ở gốc.
 
 `states[]`:
 
@@ -94,6 +106,8 @@ Gốc: `{ schema_version: 1, screen_id, states[], components[], ad_slots[], desi
 | `style` | khi có style | mọi value là `"token:<nhóm>.<key>"`. SAI: `"#FFF"`, `16` |
 | `binds[]` | khi hiển thị dữ liệu | mỗi phần tử: `field` (tồn tại thật trong `api-contracts.json`) + **`on_null`** (`hide_component`/`placeholder`/`dash`/`zero`/`fallback_text`/`skeleton`) + `format` với số/thời gian. Thiếu `on_null` = ô trắng hoặc chữ `null` hiện ra trước mặt user |
 | `text_overflow` | `type` = `text`/`badge` | `{ max_lines, behavior }` — chặn nội dung dài làm vỡ bố cục (mock data tên ngắn **không bao giờ** phát hiện ra lỗi này) |
+| `responsive` | mọi khối chứa (`section`/`card`/`list`/`grid`/`row`/`column`) + `image`/`chart`/`media_player` | `{ axis, columns, wrap_behavior, degrade_order, sizing, aspect_ratio, min_height_dp, safe_area, pinned }` — cùng vai trò `text_overflow` nhưng ở mức **khối**: chặn vỡ ở 320dp / cỡ chữ 200% / landscape / bàn phím / notch. Điền ở bước 3.7, xem `responsive_layout/SKILL.md`. `min_height_dp` **phải `null`** nếu khối chứa text |
+| `group` | khi vài phần KHÔNG được tách rời khi wrap | nhãn logic (vd `product_meta`). Khác `responsive`: `group` nói **cái gì** đi cùng nhau, `responsive` nói khối chứa **phản ứng thế nào** |
 | `interaction` | mọi control | xem bảng dưới |
 | `a11y` | mọi control + image/icon có nghĩa | `min_tap_target_ok: true` với control; `label` bắt buộc với `icon_button`; `decorative: true` cho ảnh trang trí |
 | `pattern_ref` | khi có căn cứ craft | `"design_patterns/<tag>#<số mục>"` |
@@ -124,13 +138,15 @@ Handoff từ `design-system` cố ý chỉ mang **tên** key. Nếu layout mang 
 
 ## Verify trước khi emit handoff sang `mobile`
 
-**Cách tự kiểm rẻ nhất: chạy `python kernel/tools/validate.py` và đọc mã `E13`-`E21`.** Nó kiểm được đúng những thứ dưới đây bằng máy — đừng để Gate 5 bắt việc mình tự kiểm được.
+**Cách tự kiểm rẻ nhất: chạy `python kernel/tools/validate.py` và đọc mã `E13`-`E22`.** Nó kiểm được đúng những thứ dưới đây bằng máy — đừng để Gate 5 bắt việc mình tự kiểm được.
 
 - Số UI state ≥ số (acceptance criteria + error state) liệt kê cho story đó — thiếu là chưa xong.
 - Mọi `component_need` ở bước 3.5 đã được resolve bằng `component_discovery` (bước A hoặc B) trước khi ghi vào `components` — không còn need nào bỏ ngỏ.
 - **Từng component một** (không kiểm ở mức màn hình): mọi ref trỏ đích tồn tại thật (`appears_in_states`, `parent`, `interaction.target_state`, `validation[].error_state`, `registry_ref`); `parent` không tạo vòng.
-- **Đúng 1 `emphasis: primary` mỗi state** — 2 primary = 2 CTA tranh tiêu điểm; 0 primary = màn hình không có điểm nhấn.
+- **Nhiều nhất 1 `emphasis: primary` mỗi state** — 2 primary = 2 CTA tranh tiêu điểm. Đây là **trần**, không phải đẳng thức: 0 primary hợp lệ với màn danh sách/so sánh, vì nâng 1 card lên là phá chính chức năng so sánh (xem `limits.json → design._primary_why_not_exactly_one`).
 - Mọi `binds[]` có `on_null`; mọi text/badge có `text_overflow`; mọi control có `interaction` + `a11y.min_tap_target_ok`; mọi input có `validation`; mọi `disabled_when` khai tường minh.
+- **Mọi khối chứa + `image`/`chart`/`media_player` có `responsive`**; không khối nào `axis` ngang + nhiều con + `wrap_behavior: none`; không khối chứa text nào có `min_height_dp` khác `null`; mọi `pinned: true` có `safe_area` khác `none`; `columns` phủ đủ `required_tiers` và đơn điệu theo bề rộng.
+- `responsive_declared` phủ đủ `required_tiers` + `target_orientations`, `font_scale_verified` ≥ 2.0, `keyboard_avoidance` đúng với việc màn có input hay không.
 - Mọi `data_bindings`/`binds[].field` trỏ tới field **tồn tại** trong `api-contracts.json` slice — field lạ = lỗi, sửa trước khi handoff.
 - **Tự quét lại toàn bộ layout tìm giá trị style hard-code** (chuỗi bắt đầu `#`, số trần ở field spacing/radius/size). Còn 1 chỗ = Gate 5 fail.
 - Mọi `token:` trỏ key **tồn tại** trong `token_keys` đã nhận từ handoff.

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1086934640001",
+    "project_id": "checkerpro-software-update",
+    "storage_bucket": "checkerpro-software-update.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1086934640001:android:70c3c2772f2949b7bf3480",
+        "android_client_info": {
+          "package_name": "com.supportsoftware.checkerpro"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD72KEmGMqQKHK_9L-biHOcdnerAMircrU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

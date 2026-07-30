@@ -15,7 +15,8 @@
 
 - Không tự đổi `api-contracts.json` — thấy vấn đề thì mở Sync Session với `cto`.
 - Không tự vẽ lại UX flow khác với output của `designer` — thấy bất hợp lý thì mở Sync Session với `designer`.
-- **(`mobile-screen`) Không bỏ qua field nào trong `screens/<story_id>.json`.** Hợp đồng đó đã qua Gate 5 (từng component được kiểm bằng `validate.py` mã `E13`-`E21`), nên mỗi field là **quyết định thiết kế đã kiểm**, không phải gợi ý. Bỏ `on_null` = ô trắng/chữ `null` trước mặt user; bỏ `text_overflow` = tên dài làm vỡ bố cục; bỏ `disabled_when` = bấm được lúc không nên bấm. Không lint/test nào bắt được các lỗi này. Thấy hợp đồng sai/thiếu → emit `doc_drift_detected`, KHÔNG tự sửa, KHÔNG để lại `TODO` im lặng.
+- **(`mobile-screen`) Không bỏ qua field nào trong `screens/<story_id>.json`.** Hợp đồng đó đã qua Gate 5 (từng component được kiểm bằng `validate.py` mã `E13`-`E22`), nên mỗi field là **quyết định thiết kế đã kiểm**, không phải gợi ý. Bỏ `on_null` = ô trắng/chữ `null` trước mặt user; bỏ `text_overflow` = tên dài làm vỡ bố cục; bỏ `disabled_when` = bấm được lúc không nên bấm. Không lint/test nào bắt được các lỗi này. Thấy hợp đồng sai/thiếu → emit `doc_drift_detected`, KHÔNG tự sửa, KHÔNG để lại `TODO` im lặng.
+- **(`mobile-screen`) Không dựng layout bằng kích thước cứng khi hợp đồng đã khai `responsive`.** `Modifier.height()` cố định trên khối mà hợp đồng khai `min_height_dp: null` = cắt chữ ở cỡ chữ hệ thống 200%; `Row` không `FlowRow`/`weight` khi hợp đồng khai `wrap_behavior` = tràn ngang ở máy 320dp; bỏ `safe_area` của khối `pinned` = CTA nằm dưới gesture bar. Cả 3 đều **không** bị lint/unit test bắt — phải chạy app ở 320dp và ở cỡ chữ 200% rồi mới báo xong.
 - **(`mobile-screen`) Không tự thay lib khác `registry_ref`** đã chọn trong `component-registry` — lựa chọn đó đã qua đánh giá tech-stack + độ phổ biến. Muốn đổi thì báo drift, không tự quyết.
 - **Không tự thêm permission ngoài phạm vi `architecture.md`/`system-spec.md`** — permission mới phải xuất phát từ quyết định của `cto`, không tự suy diễn "chắc sẽ cần" (least-privilege).
 - Không tự tích hợp SDK quảng cáo — đó là việc của agent `ads`.
@@ -39,6 +40,27 @@ Tất cả nằm trong `agents/mobile/skills/` trừ `git_workflow` (dùng chung
 - Phase `mobile-shell`: `setup_native_shell/`, `setup_push_deep_link/`, `check_platform_compliance/`
 - Phase `mobile-screen`: `implement_screen_contract/` (**gọi TRƯỚC**: dịch layout JSON → code, từng field một), rồi `run_lint/`, `run_unit_test/` (STACK BINDING — điền lệnh thật khi chốt framework)
 - Cả 2 phase: `git_workflow` (dùng chung với `dev-be`/`ads` — xem `skills/git_workflow/SKILL.md`)
+
+### Nhóm skill xây app mới từ template vga31-kotlin
+
+Skills tách biệt, **chạy theo thứ tự**. Gọi khi bắt đầu dự án Android mới dựa trên base template.
+Template gốc: `shared/quy-trinh-xay-dung-app/vga31-kotlin/`
+
+| # | Skill | Bắt buộc? | Phụ thuộc | Mô tả |
+|---|---|---|---|---|
+| 1 | `clone_vga31_template/` | ✅ | (không) | Clone template, rename package/appId, verify build |
+| 2 | `setup_host_application/` | ✅ | #1 | Tạo HostApplication kế thừa BaseApplication, override abstract methods, tạo resources |
+| 3 | `integrate_base_application/` | ✅ | #1 | Verify Gradle, R8, manifest merge, catalog 11 lỗi |
+| 4 | `copy_ads_reusable_components/` | ✅ | #1 | Copy 10 file lõi ads (AdManager, NativeAdSlot, AdScenario, Remote.kt) + 1 layout XML |
+| 5 | `scaffold_app_architecture/` | ✅ | #1, #2 | Dựng kiến trúc MVVM/Hilt/Navigation/Theme + 6 bước pattern tạo feature mới |
+| 6 | `configure_ads_iap/` | ✅ | #2, #3, #4 | Cấu hình ad units, IAP keys, Remote Config, ads API |
+| 7 | `configure_language_screen/` | ❌ | #2 | Custom màn Language (mặc định đã có sẵn, chỉ gọi khi cần UI riêng) |
+| 8 | `setup_intro_onboarding/` | ❌ | #2, #5 | Chèn luồng Intro/Onboarding + gate logic (InstallReferrer + đếm mở app) |
+| 9 | `migrate_ads_gma_to_lib/` | ❌ | #4 | (Tuỳ chọn) Migrate app CŨ có GMA SDK trực tiếp sang lib nlbn |
+| 10 | `qa_release_checklist/` | ✅ | #1-#6 | Checklist QA trước khi phát hành + adb cheat-sheet (gọi ở cuối) |
+
+> **Swappable:** Mỗi skill là file SKILL.md độc lập. Khi cần thay đổi template hoặc lib version,
+> chỉ cần cập nhật skill tương ứng mà không ảnh hưởng các skill khác.
 
 ## Khi API contract chưa có backend thật để test
 

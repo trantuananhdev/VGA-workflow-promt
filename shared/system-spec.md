@@ -14,6 +14,8 @@
 
 **Platform mục tiêu + min OS:** <vd iOS 15+, Android 8+ — quyết định dùng quy ước iOS HIG hay Material ở chỗ 2 bên khác nhau>
 
+**Dải kích thước màn hình mục tiêu:** <vd "chỉ phone 320–430dp, pin portrait" hoặc "phone + tablet 7–11 inch, hỗ trợ landscape"> — đây là **nguồn duy nhất** để `design-system` điền `shared/design/tokens.json → responsive_contract` (`required_tiers` / `target_orientations` / `max_font_scale`), và Gate 7 điều 8 đối chiếu lại. Ghi mơ hồ ("responsive") thì `designer-screen` phải khai cả 4 bậc cho mọi story dù app chỉ làm phone. Nêu rõ cả cỡ chữ hệ thống cao nhất phải chịu được nếu khác mặc định 200%.
+
 **Mức accessibility bắt buộc đạt:** <mặc định `a11y_contract` trong `shared/design/tokens.json`; nêu nếu cao hơn>
 
 **Ràng buộc kỹ thuật ảnh hưởng style:** <vd bắt buộc hỗ trợ dark mode, chỉ dùng font hệ thống, hỗ trợ RTL, hỗ trợ cỡ chữ hệ thống tới 200%>

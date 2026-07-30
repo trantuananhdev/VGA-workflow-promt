@@ -12,7 +12,7 @@
 
 ## Nguyên tắc: hợp đồng KHÔNG phải gợi ý
 
-Layout JSON đã qua Gate 5 nghĩa là **từng component đã được kiểm** (`validate.py` mã `E13`-`E21`): mọi `target_state` trỏ đích tồn tại thật, mọi field có `on_null`, mọi input có `validation`, mọi control có `disabled_when` khai tường minh. Những field đó là **kết quả của quyết định thiết kế đã được kiểm**, không phải ý tưởng để tham khảo.
+Layout JSON đã qua Gate 5 nghĩa là **từng component đã được kiểm** (`validate.py` mã `E13`-`E22`): mọi `target_state` trỏ đích tồn tại thật, mọi field có `on_null`, mọi input có `validation`, mọi control có `disabled_when` khai tường minh, mọi khối chứa có `responsive` (số cột theo bậc, `wrap_behavior`, `safe_area`, thứ tự degrade). Những field đó là **kết quả của quyết định thiết kế đã được kiểm**, không phải ý tưởng để tham khảo.
 
 - **Bỏ qua 1 field = tái tạo đúng lớp bug mà nó sinh ra để chặn.** Ví dụ bỏ `on_null` của `product.price` thì người dùng thấy ô trắng — và không lint/test nào bắt được.
 - **Thấy hợp đồng sai/thiếu → emit `doc_drift_detected`**, không tự sửa, không tự "cải thiện". Tự đổi UX flow khác output của `designer` là điều `AGENT.md` cấm tường minh.
@@ -64,6 +64,13 @@ Layout JSON đã qua Gate 5 nghĩa là **từng component đã được kiểm**
 | `a11y.label` | `contentDescription` (Android) / `accessibilityLabel` (iOS) | Icon là ô trống với screen reader |
 | `a11y.decorative: true` | Đánh dấu bỏ qua với screen reader | Screen reader đọc rác |
 | `a11y.min_tap_target_ok` | Bảo đảm vùng bấm ≥ 48dp / 44pt **thật** (thêm padding nếu icon nhỏ) | Bấm không trúng, fail a11y audit |
+| **`responsive.axis` + `columns`** | Đọc bề rộng thật (`BoxWithConstraints` / `WindowSizeClass` — Compose; `horizontalSizeClass` — SwiftUI) rồi dùng **đúng** số cột đã khai cho từng bậc | Grid 2–3 cột cứng → vỡ ở máy 320dp, thừa chỗ ở tablet |
+| **`responsive.wrap_behavior`** | `wrap` → `FlowRow`/`FlowLayout`; `scroll_horizontal` → `LazyRow` (để con kế tiếp hở ra báo cuộn được); `stack_vertical` → đổi `Row` thành `Column` ở bậc hẹp; `shrink` → `Modifier.weight` cho con | **Tràn ngang: phần tử cuối bị cắt mất** ở máy hẹp, và không test nào bắt |
+| **`responsive.degrade_order`** | Ẩn/thu gọn **đúng thứ tự đó** khi hết chỗ, phần tử đầu trước | Tự chọn cái gì bị cắt → cắt dữ liệu/giá trước khi cắt nhãn |
+| `responsive.sizing` | `fill` → `fillMaxWidth`; `weight` → `Modifier.weight`; `aspect_ratio` → `Modifier.aspectRatio(w/h)`; `fixed` → kích thước cố định (chỉ icon/avatar/divider) | Bố cục không co giãn, hoặc ảnh bị bóp méo |
+| **`responsive.min_height_dp: null`** | **KHÔNG** `Modifier.height()` cố định cho khối đó — để nội dung tự đẩy cao. Dùng `sdp`/`ssp` (`com.intuit.sdp`/`ssp-android`, xem `integrate_base_application`) thay cho dp/sp trần | **Chữ bị cắt ngang thân ở cỡ chữ hệ thống 200%** — máy dev cỡ chữ 100% không bao giờ lộ ra |
+| **`responsive.safe_area` + `pinned`** | `WindowInsets.safeDrawing`/`navigationBars` (Compose), `safeAreaInset` (SwiftUI). `pinned` = neo biên, không cuộn theo nội dung | Tiêu đề lọt vào notch; **CTA đáy nằm dưới gesture bar, bấm ra Home** |
+| **`responsive_declared.keyboard_avoidance`** | `scroll_content` → `imePadding` + `verticalScroll`; `pin_cta_above_keyboard` → CTA neo trên IME inset; `resize_content` → co vùng nội dung | Bàn phím che **đúng cái nút Gửi** — người dùng tưởng app treo |
 | `ad_slots[]` | Chèn đúng `region`/`after_component_id`; **không** chèn ở state `error`/`loading` | Quảng cáo trên màn lỗi = vi phạm chính sách |
 
 ## Verify trước khi báo "xong" (chạy TRƯỚC `run_lint`/`run_unit_test`)
@@ -77,6 +84,10 @@ Layout JSON đã qua Gate 5 nghĩa là **từng component đã được kiểm**
 - **Mọi** control có `disabled_when` khác null đã bind `enabled` thật.
 - **Mọi** input có validation client-side + hiện đúng `error_state`.
 - **Mọi** text/badge có giới hạn dòng đúng `text_overflow`.
+- **Mọi** khối có `responsive` đã cài đúng `axis`/`columns`/`wrap_behavior` — đếm: số khối có `responsive` trong hợp đồng **=** số khối trong code đọc bề rộng hoặc dùng layout co giãn được.
+- **Không** `Modifier.height()`/`frame(height:)` cố định nào trên khối mà hợp đồng khai `min_height_dp: null`. Tự grep lại — đây là lớp bug hay bị bỏ nhất sau `on_null`.
+- **Mọi** `pinned: true` đã áp inset đúng `safe_area`; `keyboard_avoidance` đã cài thật (mở bàn phím và xem CTA có bị che không, không suy luận).
+- Chạy app ở **bề rộng hẹp nhất** (`min_supported_width_dp`, mặc định 320dp) và ở **cỡ chữ hệ thống 200%** — mỗi state một lượt. Đây là 2 hoàn cảnh mà `responsive_declared` đã cam kết, và là 2 lớp vỡ mà lint/unit test **không bắt được**.
 - **Không** literal màu/spacing nào trong code UI — tất cả qua theme system.
 - Lib dùng đúng `registry_ref`, không thay thế.
-- Chạy `python kernel/tools/validate.py`: nhóm `E13`-`E21` phải **sạch** — nếu hợp đồng bạn đang code bị lỗi thì lỗi nằm ở `designer-screen`, emit `doc_drift_detected` thay vì code theo hợp đồng sai.
+- Chạy `python kernel/tools/validate.py`: nhóm `E13`-`E22` phải **sạch** — nếu hợp đồng bạn đang code bị lỗi thì lỗi nằm ở `designer-screen`, emit `doc_drift_detected` thay vì code theo hợp đồng sai.

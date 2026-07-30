@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark mode notification text colors -->
+    <color name="notification_text_primary">#FFFFFFFF</color>
+    <color name="notification_text_secondary">#FFB3B3B3</color>
+    <color name="notification_text_tertiary">#FF808080</color>
+    <!-- text1 giữ cố định ở cả values/ và values-night/ (spec §5.1) -->
+    <color name="text1">#00091D</color>
+</resources>

@@ -17,7 +17,7 @@ Sticky bottom action bar ở chi tiết sản phẩm: 1 hàng cao 56-64dp **cộ
 
 ## 2. Hierarchy & emphasis
 
-Đúng **1 primary/màn/state**. Quy tắc phân xử của domain này:
+**Nhiều nhất 1** `primary`/màn/state (trần, không phải đẳng thức — xem gạch đầu dòng "màn danh sách" dưới, và `limits.json → design._primary_why_not_exactly_one`). Quy tắc phân xử của domain này:
 
 - **Primary luôn là hành động, không phải con số.** Ở chi tiết sản phẩm, `emphasis: primary` thuộc CTA "Thêm vào giỏ". Giá là element có **type scale lớn nhất trang** nhưng vẫn là `secondary` — bấm vào nó không làm gì.
 - **2 CTA (Thêm giỏ / Mua ngay) thì 1 filled + 1 outlined**, không bao giờ 2 filled. Filled thuộc hành động ít hối hận hơn (thêm giỏ).
@@ -67,3 +67,19 @@ Sticky bottom action bar ở chi tiết sản phẩm: 1 hàng cao 56-64dp **cộ
 **Suy đoán của tôi (chưa có tier 1 chống lưng — hãy chỉnh nếu thấy sai):** mọi con số tỉ lệ cụ thể trong mục 1 và 3 — 45-55% viewport cho gallery, 55-65% chiều cao card cho media, CTA ≥60% chiều rộng bar, thumbnail 56-64dp, hở 15-20% card kế tiếp, giá gốc ở 70-80% scale, spacing 2-4dp/8dp. Đây là chưng từ quan sát app phổ biến (tier 3-4: ảnh store), **không** có spec chính thống nào chốt các số này. Quy tắc "màn danh sách không có primary" và "primary là hành động, không phải con số" cũng là suy luận của tôi từ ràng buộc 1-primary-mỗi-màn của layout JSON, không phải convention đã được ai phát biểu.
 
 **Ranh giới IP:** file này chỉ chứa cấu trúc, thứ tự, tỉ lệ và quan hệ — không có hex thương hiệu, logo, bộ icon độc quyền hay copy nguyên văn của app nào, và cố ý không nêu tên app cụ thể như hình mẫu.
+
+## 6. Thich ung kich thuoc man hinh
+
+> Dien `components[].responsive` theo muc nay; co che va thu tu degrade chung o `agents/designer/skills/responsive_layout/SKILL.md`. Cac con so duoi thuoc dien **SUY DOAN** cua muc 5 tru khi ghi ro tier 1.
+
+**Cot:** grid ket qua tim kiem `compact_small` **1** cot / `compact` **2** / `medium` 3 / `expanded` 4. Tier 1: M3 compact <600dp -> 2 cot. Duoi 360dp thi 2 cot chi con ~150dp/cot — khong du cho anh 1:1 + ten 2 dong + price block, nen ha ve 1 cot va doi card sang bo cuc ngang (thumbnail trai, text phai).
+
+**Hang cuon ngang tren trang chu:** `axis: horizontal` + `wrap_behavior: scroll_horizontal`, chieu rong item **co dinh theo ti le** (khong theo % man) de moc "ho 15-20% card ke tiep" con dung o moi be rong.
+
+**Degrade trong card san pham** (`degrade_order`, bo truoc -> sau): trust row ("da ban N") -> badge giam gia -> gia goc gach ngang -> ten rut ve 1 dong. **Khong bao gio**: anh, gia hien tai. Cat gia la lam sai chuc nang man so sanh.
+
+**Sticky action bar chi tiet san pham:** `pinned: true` + `safe_area: "bottom"` (bat buoc — 56-64dp *cong* inset la con so o muc 1). O co chu 200% thi cum icon phu ben trai bi bo TRUOC khi CTA hep lai; CTA giu >=60% be rong.
+
+**Gallery san pham:** `sizing: aspect_ratio` 1:1, **khong** dung % chieu cao viewport — o landscape thi "45-55% viewport" lam gallery an het man va gia tut xuong duoi fold.
+
+**Landscape / medium:** chi tiet san pham chuyen sang 2 khoi ngang (gallery trai ~45%, thong tin + CTA phai) thay vi keo dai truc doc. Grid gio hang giu 1 cot dong, khong bao gio 2 cot.

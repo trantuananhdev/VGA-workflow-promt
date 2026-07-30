@@ -6,9 +6,9 @@
 
 ---
 
-## Vì sao là skill RIÊNG, không phải mục 6 của `domain`
+## Vì sao là skill RIÊNG, không phải vài mục thêm vào `domain`
 
-`skills/domain/SKILL.md` chốt cứng **đúng 5 mục** và ghi rõ *"Thêm mục 6 = không ai đọc"* — vì `generate_wireframe` đọc domain skill theo **số mục**. Nhưng lý do tách còn quan trọng hơn chuyện format:
+`skills/domain/SKILL.md` chốt cứng **đúng 5 mục** — vì `generate_wireframe` đọc domain skill theo **số mục**, thêm mục vào đó là không ai đọc. Nhưng lý do tách còn quan trọng hơn chuyện format:
 
 | | `skills/domain/<tag>/` | `skills/design_patterns/<tag>/` (file này) |
 |---|---|---|
@@ -42,7 +42,7 @@ Nạp ở **bước 0** cùng lúc với `domain` skill, dùng ở **bước 3.5
 
 ## Cấu trúc bắt buộc của 1 file pattern
 
-Mọi `design_patterns/<tag>/SKILL.md` phải có đúng 5 mục dưới, theo thứ tự (đọc theo **số mục**, không theo tên — cùng quy ước với `domain`):
+Mọi `design_patterns/<tag>/SKILL.md` phải có đúng 6 mục dưới, theo thứ tự (đọc theo **số mục**, không theo tên — cùng quy ước với `domain`):
 
 ```
 ## 1. Bố cục màn hình chủ đạo
@@ -50,9 +50,12 @@ Mọi `design_patterns/<tag>/SKILL.md` phải có đúng 5 mục dưới, theo t
 ## 3. Cấu trúc bên trong từng component chủ đạo
 ## 4. Interaction & motion
 ## 5. Nguồn tham chiếu + ranh giới IP
+## 6. Thích ứng kích thước màn hình
 ```
 
-Thiếu mục = `designer` đọc lệch số mục. Thêm mục 6 = không ai đọc. **Giới hạn ~90 dòng/file** — dài hơn là tràn ngân sách context của `designer`, và dấu hiệu đang lặp nội dung `domain` skill.
+Thiếu mục = `designer` đọc lệch số mục. Thêm mục 7 = không ai đọc. **Giới hạn ~105 dòng/file** — dài hơn là tràn ngân sách context của `designer`, và dấu hiệu đang lặp nội dung `domain` skill.
+
+**Mục 6 cố ý đứng SAU mục 5** (nguồn/IP), dù đọc hơi ngược: 5 vốn là mục cuối và mọi `pattern_ref` đang trỏ theo số mục — chèn mục mới vào giữa sẽ làm lệch toàn bộ ref đã ghi. Đổi lại có cái lợi: các con số trong mục 6 nằm dưới đúng lời tuyên bố SUY ĐOÁN của mục 5, và chúng thật sự là suy đoán. Cơ chế responsive (field nào chặn lớp vỡ nào, thứ tự degrade chung) nằm ở `skills/responsive_layout/SKILL.md`; mục 6 chỉ nói phần **đặc thù domain**.
 
 ## Trích cái gì / KHÔNG trích cái gì — ranh giới bắt buộc
 
@@ -91,7 +94,7 @@ Chữ thì diff được, review được, versioned được, và vừa ngân s
 Dùng **đúng** cơ chế `draft: true` mà `domain/SKILL.md` đã thiết lập (cùng lý do, không phát minh cơ chế mới):
 
 ```
-1. Sinh agents/designer/skills/design_patterns/<tag>/SKILL.md theo ĐÚNG 5 mục trên.
+1. Sinh agents/designer/skills/design_patterns/<tag>/SKILL.md theo ĐÚNG 6 mục trên.
 2. Dòng đầu file PHẢI có:  > draft: true — chưa qua review người, xem shared/lessons_learned.md
 3. Dùng cho story hiện tại, NHƯNG handoff phải khai draft_patterns: [<tag>]
    (song song draft_domains của domain skill — Gate 5 kiểm cả 2).
