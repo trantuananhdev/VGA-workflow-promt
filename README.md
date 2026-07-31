@@ -1,10 +1,23 @@
-# Mobile Factory OS — Workspace này là gì
+# Software Factory OS — Workspace này là gì
 
-Đây là "OS prompt" (khung kiến trúc) cho hệ thống multi-agent đưa 1 ý tưởng **mobile app** từ Client tới khi lên chợ, và duy trì mãi về sau — vận hành hoàn toàn bằng file `.md`/`.json`.
+Đây là "OS prompt" (khung kiến trúc) cho hệ thống multi-agent đưa 1 ý tưởng từ Client tới khi phát hành, và duy trì mãi về sau — vận hành hoàn toàn bằng file `.md`/`.json`.
 
-> **Repo này THUẦN Mobile.** Web-application dùng repo riêng — vì `devops` (submit App Store/Play Store vs deploy hosting/CDN), client-side stack, và quy trình release khác nhau về bản chất, nhét chung 1 repo sẽ buộc nhiều agent phải rẽ nhánh theo loại project bên trong.
+> **ĐỀ BÀI QUYẾT ĐỊNH TECH STACK — kernel không cố định mobile.** Trước đây repo là "thuần Mobile":
+> unit `mobile-shell`/`mobile-screen` cố định trong `dag.json`, nên **loại sản phẩm là hằng số ẩn**
+> của kernel và web-application phải dùng repo riêng. Bây giờ:
 >
-> Không có agent `dev-fe` — vai trò client-side do `mobile` đảm nhiệm với 2 phase (`mobile-shell` + `mobile-screen`), vì trong 1 team mobile thật đó luôn là cùng 1 người.
+> ```
+> po ghi product_signals (tín hiệu NGHIỆP VỤ, không phải công nghệ)
+>    → cto chạy skills/decide_tech_stack → tech-stack.json: delivery_targets + stack (có bằng chứng)
+>    → generate_wbs chỉ sinh node cho unit có only_if thoả
+>    → agent client nạp platform pack đúng nền tảng, devops release đúng kiểu
+> ```
+>
+> `delivery_targets` ⊂ `{mobile_native, web_app, backend_service}`. Cùng 1 `dag.json` sinh được 3 hình
+> dạng project: app + backend, chỉ client (local-first), chỉ backend (API thuần) — xem
+> `kernel/rules/routing-table.md`. Không có agent `dev-fe`: vai trò client-side do `client` đảm nhiệm
+> cho **mọi** nền tảng với 2 phase (`client-shell` + `client-screen`), tri thức nền tảng nằm ở
+> `agents/client/skills/platform/<pack>/`.
 
 **Đọc theo thứ tự này khi bắt đầu:**
 
@@ -13,10 +26,10 @@
 3. `kernel/contracts/dag.json` — **bản máy đọc** của DAG (Gate 0/Gate 2 lookup vào đây). `kernel/rules/routing-table.md` là bản giải thích cho người — 2 file phải khớp.
 4. `kernel/contracts/` — **2 contract đối xứng**: `message.schema.json` + `message-examples.md` (agent→kernel; 3 field then chốt `node_id`/`processed_at`/`message_id`) và `boot-context.schema.json` (kernel→agent). Cùng với `data-ownership.json` (single-writer) và `dag.json`.
 5. `kernel/rules/` — `scheduling-policy.md` (ưu tiên từng pha, capacity), `handoff-contracts.md` (mỗi cạnh truyền field gì), `routing-table.md`, `ssot-precedence.md`.
-6. `kernel/gates/` — **8 Gate** (0-7), mỗi file nêu chính xác điều kiện pass + hành động khi fail. Số gate đánh theo thứ tự tạo ra, không theo DAG: thứ tự chạy thực tế là `gate0` (mọi dispatch) → `gate1` (cto) → `gate2` (sau `generate_wbs`) → **`gate7`** (`design-system` — gate DUY NHẤT chờ người chọn phương án theme) → `gate5` (`designer-screen`) → `gate3` (dev-be/mobile/ads) → `gate4` (qa) → `gate6` (release).
-7. `kernel/memory/project-profile.json` — capability-agent nào active cho project HIỆN TẠI. Do `po` ghi lúc intake.
-8. `agents/_template/` — khuôn mẫu tạo agent mới. **8 agent core**: `po`, `ba`, `cto`, `designer`, `dev-be`, `mobile`, `devops`, `qa`. **1 capability-agent** (`core:false`): `ads`.
-9. `shared/` — SSOT nghiệp vụ (`PRD.md`, `architecture.md`, `db-schema.md`, `system-spec.md`, `contracts/api-contracts.json`, `capabilities/native.json`, `capabilities/ads.json`) — **anchor tag `<!-- tier:2 role:... story:... -->` là nơi DUY NHẤT khai quyền đọc**: `context_compile.py` quét theo tag, không giữ danh sách riêng. Thêm file mới không cần sửa tool. `Monetization: true|false` bắt buộc trên mọi User Story.
+6. `kernel/gates/` — **8 Gate** (0-7), mỗi file nêu chính xác điều kiện pass + hành động khi fail. Số gate đánh theo thứ tự tạo ra, không theo DAG: thứ tự chạy thực tế là `gate0` (mọi dispatch) → `gate1` (cto) → `gate2` (sau `generate_wbs`) → **`gate7`** (`design-system` — gate DUY NHẤT chờ người chọn phương án theme) → `gate5` (`designer-screen`) → `gate3` (dev-be/client/ads) → `gate4` (qa) → `gate6` (release).
+7. `kernel/memory/project-profile.json` — capability-agent nào active + **`product_signals`** (tín hiệu thô của đề bài). Do `po` ghi lúc intake. Cặp với `shared/contracts/tech-stack.json` (do `cto` ghi): tín hiệu ở đây, **kết luận `delivery_targets` + stack** ở đó — 2 file vì 2 writer khác nhau (single-writer, chống race).
+8. `agents/_template/` — khuôn mẫu tạo agent mới. **8 agent core**: `po`, `ba`, `cto`, `designer`, `dev-be`, `client`, `devops`, `qa`. **1 capability-agent** (`core:false`): `ads`. Lưu ý `core: true` nghĩa là "không phải capability tuỳ chọn", **không** phải "luôn có node" — `only_if` theo `delivery_targets` vẫn tắt được unit của agent core.
+9. `shared/` — SSOT nghiệp vụ (`PRD.md`, `architecture.md`, `db-schema.md`, `system-spec.md`, `contracts/api-contracts.json`, `capabilities/client.json`, `capabilities/ads.json`) — **anchor tag `<!-- tier:2 role:... story:... -->` là nơi DUY NHẤT khai quyền đọc**: `context_compile.py` quét theo tag, không giữ danh sách riêng. Thêm file mới không cần sửa tool. `Monetization: true|false` bắt buộc trên mọi User Story.
 10. `kernel/config/limits.json` — SSOT cho mọi ngưỡng số (giới hạn body, stale node, token/ký tự). Các file khác chỉ tham chiếu tên field, không lặp lại con số.
 11. `skills/` — `generate_wbs` (sinh `wbs.json` sau Gate 1), `estimate_scope`, `git_workflow`, `context_compile` (đặc tả; bản thực thi ở `kernel/tools/context_compile.py`).
 
@@ -44,9 +57,11 @@ Phép **giao tập** làm cả 3 track tự đúng, không cần logic riêng ch
 
 | Track | `qa.depends_on` | Vì sao đúng |
 |---|---|---|
-| `build`, story thường | `[US014-dev-be, US014-mobile-screen]` | cả 2 unit đều có node |
+| `build`, story thường | `[US014-dev-be, US014-client-screen]` | cả 2 unit đều có node |
 | `build`, `Monetization:true` | `+ [US014-ads-placement]` | conditional thoả |
-| `runtime`, fix bug ở mobile | `[BUG042-mobile-screen]` | track không có `dev-be` → tự loại. QA chỉ chờ bản fix. |
+| `runtime`, fix bug ở client | `[BUG042-client-screen]` | track không có `dev-be` → tự loại. QA chỉ chờ bản fix. |
+| `build`, project API thuần | `[US014-dev-be]` | `delivery_targets = [backend_service]` → `client-screen` không có node (`only_if`) |
+| `build`, project web local-first | `[US014-client-screen]` | `delivery_targets = [web_app]` → `dev-be` không có node |
 
 ## Công cụ kernel — chỉ Python stdlib, tool nào cũng chạy
 
@@ -87,6 +102,9 @@ Ba loại lỗi dưới đây **không tự báo** — hệ thống vẫn "chạ
 | `message_id` trùng → ghi đè, mất message | quy ước `msg-<node_id>-<n>` khiến trùng **không thể xảy ra về mặt cấu trúc** (`D16`/`D17`) |
 | Tier 2 rỗng → agent làm việc mù | `context_compile.py` chặn dispatch, phân biệt rõ "lỗi tag" vs "story chưa có nội dung" (`G11`) |
 | Monitoring chưa gắn → `crash_alert` không bao giờ về, **Runtime Mode chết âm thầm** | Gate 6 bắt buộc thấy event thật đã đến, không nhận "đã cấu hình webhook" |
+| WBS sinh node cho nhánh project **không có** (vd project web có node native shell) → node nằm `ready` mãi, không ai làm được | `C35` đối chiếu `only_if` của unit với `delivery_targets` |
+| WBS **thiếu** cả 1 nhánh đáng lẽ phải có (vd có backend nhưng không có node `dev-be`) → gate xuôi dòng vẫn pass, không ai kiểm phần đó | `C36` (chiều ngược của `C35`) |
+| `only_if` viết bằng cú pháp tự do → `generate_wbs` (LLM) và validator (Python) hiểu khác nhau | văn phạm **đóng** 3 biểu thức (`dag.json` → `_only_if_grammar`), lạ = `B16` fail-closed |
 
 ## Khi node hết lượt retry: `waiting_human`, không phải `failed`
 
@@ -109,23 +127,24 @@ Không tách thành agent riêng vì đó là cùng 1 chuyên môn/1 người th
 | Agent | Phase sớm (song song, chỉ cần Gate 1) | Phase muộn |
 |---|---|---|
 | `designer` | `design-system` — chốt `shared/design/tokens.json` + `theme-preview.html` (1 lần/project). **Gate 7 dừng chờ NGƯỜI chọn theme** | `designer-screen` — layout JSON per story, mọi style trỏ token; cần `design-system` xong |
-| `mobile` | `mobile-shell` — native config, permission, push, deep link (1 lần/project) | `mobile-screen` — code UI/logic per story, cần `designer-screen` + `mobile-shell` xong |
-| `ads` | `ads-setup` — SDK + consent management (1 lần/project) | `ads-placement` — chèn quảng cáo, chỉ story `Monetization: true`, cần `mobile-screen` xong |
-| `devops` | `devops-infra` — CI/CD, môi trường | `devops-release` — build, ASO, monitoring; cần `qa` pass Gate 4 |
+| `client` | `client-shell` — dựng vỏ theo platform pack: native config/permission/push/deep-link (mobile) hoặc app shell/routing/CSP/render mode (web), 1 lần/project | `client-screen` — code UI/logic per story, cần `designer-screen` + `client-shell` xong |
+| `ads` | `ads-setup` — SDK + consent management (1 lần/project) | `ads-placement` — chèn quảng cáo, chỉ story `Monetization: true`, cần `client-screen` xong |
+| `devops` | `devops-infra` — CI/CD, môi trường | `devops-release` — phát hành **theo từng `delivery_target`** (store submit / URL live / API health) + monitoring; cần `qa` pass Gate 4 |
 
 ## Capability-agent — bật/tắt theo từng project
 
 `agents/<role>/manifest.json` có field `core`:
-- `core: true` (8 agent) — backbone, luôn active.
+- `core: true` (8 agent) — backbone, **được** active khi project cần phần việc đó (`only_if` theo `delivery_targets` vẫn tắt được: project API thuần không có node `designer`/`client` nào).
 - `core: false` (hiện tại chỉ `ads`) — chỉ active khi `kernel/memory/project-profile.json` khai trong `active_capability_agents`.
 
-Mobile app không cần quảng cáo? Để `active_capability_agents: []` — `ads` không bao giờ được spawn, không cần sửa gì trong `agents/` hay `routing-table.md`. Muốn thêm capability mới (payment, i18n...)? Copy `agents/_template/`, đặt `core:false`, thêm 1 dòng vào bảng "Capability Plug-in Points" trong `routing-table.md` — không sửa Core DAG.
+Sản phẩm không cần quảng cáo? Để `active_capability_agents: []` — `ads` không bao giờ được spawn, không cần sửa gì trong `agents/` hay `routing-table.md`. Muốn thêm capability mới (payment, i18n...)? Copy `agents/_template/`, đặt `core:false`, thêm 1 dòng vào bảng "Capability Plug-in Points" trong `routing-table.md` — không sửa Core DAG.
 
 ## Quy tắc tổ chức skill — tránh trùng lặp khi thêm skill mới
 
-- **≥ 2 role dùng giống hệt nhau** (vd `git_workflow` cho `dev-be`/`mobile`/`ads`, `context_compile`/`generate_wbs` cho Orchestrator) → đặt ở `skills/` cấp root, các `AGENT.md` chỉ tham chiếu tên, không copy nội dung.
+- **≥ 2 role dùng giống hệt nhau** (vd `git_workflow` cho `dev-be`/`client`/`ads`, `context_compile`/`generate_wbs` cho Orchestrator) → đặt ở `skills/` cấp root, các `AGENT.md` chỉ tham chiếu tên, không copy nội dung.
 - **Chỉ 1 role dùng, đặc thù nghiệp vụ của role đó** (vd `generate_wireframe` của `designer`, `classify_domain` của `ba`) → đặt trong `agents/<role>/skills/`.
 - **Thư viện tri thức theo domain** (`agents/designer/skills/domain/<tag>/`) → nạp CHỌN LỌC theo `shared/contracts/domain-map.json`, không nạp cả thư viện (ngân sách context là per-agent).
+- **Tri thức theo NỀN TẢNG** (`agents/client/skills/platform/<pack>/`) → cùng cơ chế trên nhưng chọn theo `shared/contracts/tech-stack.json`: `AGENT.md` giữ phần **vai trò** (bất biến giữa mọi project), pack giữ phần **nền tảng** (thay theo đề bài). Trộn 2 thứ vào 1 file thì mỗi project mới lại phải sửa `AGENT.md` — tức sửa hợp đồng vai trò mà `dag.json`/gate đang dựa vào.
 
 ## Trạng thái: hoàn chỉnh về CẤU TRÚC — còn 5 chỗ chờ quyết định thật
 
@@ -133,10 +152,11 @@ Mọi thứ ĐÃ CÓ đầy đủ hình dạng (contract, schema, quy trình, ve
 
 | Việc còn để trống | Ở đâu | Vì sao chưa điền |
 |---|---|---|
-| Lệnh lint/test/build thật | `agents/dev-be/skills/`, `agents/mobile/skills/{run_lint,run_unit_test}/`, `agents/qa/skills/run_tests/` (khối "STACK BINDING" — đã liệt kê sẵn lệnh gợi ý cho Flutter/RN/Native Android/iOS, chỉ cần chọn) | Chưa chốt Flutter/React Native/Native |
+| Lệnh lint/test/build thật | `agents/dev-be/skills/`, `agents/client/skills/{run_lint,run_unit_test}/` (lấy lệnh từ **STACK BINDING của platform pack**: `platform/mobile-native/SKILL.md` mục 2, `platform/web-spa/SKILL.md` mục 2), `agents/qa/skills/run_tests/` | Phụ thuộc stack mà `cto` chốt từ đề bài — điền khi có project thật đầu tiên |
+| Pack nền tảng chưa chạy thật | `agents/client/skills/platform/web-spa/` (mục 5 ghi rõ phần nào là SUY ĐOÁN), iOS/Flutter chưa có stack pack | Chỉ nhánh Android/Kotlin (`vga31-kotlin`) đã có đường chạy thật. Project web/iOS đầu tiên phải cập nhật lại pack + ghi `shared/lessons_learned.md` |
 | Danh sách từ khoá cấm store | `agents/devops/docs/store-keyword-blocklist.md` | Cần dữ liệu thật, tích luỹ dần khi bắt đầu submit app đầu tiên |
 | Tên kênh escalate thật | `kernel/config/escalation.json` | Cần bạn cung cấp kênh Slack/email thật của team |
 | Ngưỡng coverage cụ thể | `agents/qa/skills/check_coverage/SKILL.md` | Tuỳ mức độ khắt khe bạn muốn cho dự án đầu tiên |
 | Chọn ad network/mediation thật | `agents/ads/skills/integrate_ad_sdk/SKILL.md` | Quyết định 1 lần đầu dự án có `ads` active |
 
-**Cân nhắc thêm (không bắt buộc):** `skill_generate_mock_server` sinh từ `api-contracts.json`, giúp `mobile-screen` test độc lập hoàn toàn với `dev-be` kể cả trước khi có backend thật chạy.
+**Cân nhắc thêm (không bắt buộc):** `skill_generate_mock_server` sinh từ `api-contracts.json`, giúp `client-screen` test độc lập hoàn toàn với `dev-be` kể cả trước khi có backend thật chạy.

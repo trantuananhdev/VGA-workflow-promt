@@ -58,6 +58,25 @@ Không phải "viết ra rồi tin". Đã test bằng cách **tiêm lỗi cố �
 
 Mỗi lần thêm nhóm kiểm tra mới đều test lại theo cách này — validator không bao giờ báo lỗi thì vô dụng.
 
+### `tests/test_invariants.py` — chứng minh validator bắt được cái nó tuyên bố
+
+```bash
+python kernel/tools/tests/test_invariants.py     # exit 0 = mọi lỗ vẫn bịt
+```
+
+`validate.py --selftest` chỉ trả lời *"repo hiện tại có nhất quán không"*. Nó **không** trả lời được *"nếu ai đó làm sai thì validator có báo không"* — và câu trả lời từng là **KHÔNG** cho nhiều invariant được tuyên bố rõ trong tài liệu:
+
+| State giả | Trước | Nay |
+|---|---|---|
+| `consecutive_fail: 99` + `status: ready` + `after_fail: 3` | 0 finding (nguyên tắc bất biến #4 không ai canh) | `C42` |
+| `awaiting_human_decision` + `consecutive_fail: 5` | 0 finding (dù `ORCHESTRATOR.md` §6 gọi tên đúng mã `C33`) | `C33` |
+| Quên `processed_at` ở đường **retry** | 0 finding (đúng loop vô hạn mà `D12` sinh ra để chặn) | `D12` |
+| `devops-release` emit handoff | `D10` chặn **mọi** handoff → node lá không thể báo xong | pass với `to: __end__` |
+| `qa` gửi bug_report về `client` | `D10` chặn → đường fail chính của pipeline không tồn tại | pass qua `reject_feeds` |
+| `waiting_sync` không có sync node trả lời | treo im lặng tới khi `C28` chẩn đoán **sai** là "agent hang" | `C41` |
+
+13 ca, chạy lại sau **mỗi** lần sửa kernel: 1 ca chuyển PASS → FAIL nghĩa là một lỗ vừa bị mở lại. Harness gọi trực tiếp `check_wbs`/`check_mailbox` nên không chạm `wbs.json`; riêng `check_mailbox` đọc thư mục thật nên nó ghi 1 file tạm `kernel/mailbox/_regress.md` và xoá trong `finally`.
+
 ## `resume.py` — đường quay lại duy nhất sau escalation
 
 ```bash
@@ -65,11 +84,22 @@ python kernel/tools/resume.py --list                            # node nào đan
 python kernel/tools/resume.py <node_id> --note "<đã sửa gì>"    # waiting_human -> ready|blocked
 python kernel/tools/resume.py <node_id> --abandon --note "..."  # waiting_human -> failed
 python kernel/tools/resume.py <node_id> --decision <id> --note "..."  # awaiting_human_decision -> ready
+python kernel/tools/resume.py <node_id> --requeue --note "..."  # running (đã stale) -> ready|blocked
 ```
+
+`--requeue` là **đường ra khỏi `running`** — trước đây nó không tồn tại: `limits.json` `node.stale_action` mô tả rõ phải làm gì nhưng không tool nào đọc field đó, `C28` chỉ *báo*, và chính `resume.py` thì *từ chối* node `running`. Kết quả: agent chết → node giữ 1 slot concurrency vĩnh viễn, và cách duy nhất là sửa tay `wbs.json` — đúng việc mà tool này tồn tại để cấm.
+
+Nó chỉ chấp nhận node đã quá `node.stale_running_hours`, và **không** reset `gate.consecutive_fail` (agent chết không phải là "người đã sửa xong lỗi" — reset ở đây sẽ xoá lịch sử fail và node có thể retry vô hạn mà không bao giờ escalate).
+
+`--decision` còn **đối chiếu `<id>` với `shared/design/tokens.json` → `themes`** trước khi ghi. Trước đây nó ghi bất kỳ chuỗi nào được truyền vào, nên một lỗi gõ (`B-bold` vs `b-bold`) khoá một theme **không tồn tại**, và lỗi chỉ lộ ra ở bước dùng màu — sau khi cả nhánh design đã đi tiếp.
 
 `--decision` dùng riêng cho status `awaiting_human_decision` (hiện chỉ Gate 7 — chọn theme): ghi thêm `shared/design/theme-choice.json` (owner `__human__`), và **không** tăng `gate.consecutive_fail` vì đây không phải lỗi. Xem `kernel/gates/gate7-design-system-lock.md`.
 
-Node `waiting_human` **không tự thoát ra được**. Tool này làm nguyên tử 4 việc: đổi `status`, reset `gate.consecutive_fail`, append `gate.resume_history`, append `event-log`.
+Node `waiting_human` **không tự thoát ra được**. Tool này làm 4 việc cùng lúc: đổi `status`, reset `gate.consecutive_fail`, append `gate.resume_history`, append `event-log`.
+
+Mọi lần ghi `wbs.json` đi qua `kernel/tools/_atomic.py` (`.tmp` + `os.replace` + `fsync`). Trước đây cả 3 tool dùng `open(path, "w")` — mà `"w"` **truncate trước** khi ghi byte đầu tiên, nên crash/hết đĩa giữa lúc ghi làm `wbs.json` bị cắt cụt. Đó là nguồn sự thật duy nhất của scheduler và **không có backup** (`ORCHESTRATOR.md` §2: khôi phục = đọc `wbs.json`), nên mất nó là mất toàn bộ tiến trình. Nghịch lý đã tồn tại trước khi sửa: docstring của chính `resume.py` tự nhận là *"một lệnh NGUYÊN TỬ, không thể làm nửa vời"*.
+
+Nếu thấy file `kernel/memory/.wbs.json.tmp` còn lại → dấu hiệu một lần ghi bị đứt giữa đường; `wbs.json` vẫn nguyên vẹn (bản cũ), đối chiếu rồi xoá `.tmp`.
 
 **Không sửa tay `wbs.json` để resume** — rất dễ quên reset bộ đếm, node sẽ escalate lại ngay lần fail tiếp theo, người tưởng đã xử lý xong nhưng hệ thống thì không. `--note` bắt buộc để lớp Evolution biết người đã sửa gì. Tool **tính lại `depends_on`** thay vì mặc định `ready`, vì trong lúc treo dependency có thể đã đổi.
 
@@ -96,11 +126,11 @@ Mỗi dòng 1 span. Bắt buộc: `ts`, `event`, `node_id`. `event` ∈ `dispatc
 
 ```jsonl
 {"ts":"2026-07-28T10:02:00Z","event":"dispatch","node_id":"US014-designer-screen","task_id":"US-014","role":"designer","phase":"designer-screen"}
-{"ts":"2026-07-28T10:14:30Z","event":"handoff","node_id":"US014-designer-screen","task_id":"US-014","from":"designer","to":"mobile","message_id":"msg-US014-designer-screen-1","gate":"gate5","result":"pass","unblocked":["US014-mobile-screen"]}
-{"ts":"2026-07-28T11:40:12Z","event":"gate_check","node_id":"US014-mobile-screen","task_id":"US-014","gate":"gate3","result":"fail","consecutive_fail":1,"reason":"flutter analyze: 3 errors in otp_screen.dart"}
-{"ts":"2026-07-28T12:05:00Z","event":"sync_session","node_id":"US014-mobile-screen","task_id":"US-014","request_id":"sync-US014-01","participants":["mobile","cto"],"turns":2,"outcome":"resolved"}
-{"ts":"2026-07-28T13:20:00Z","event":"escalation","node_id":"US014-mobile-screen","task_id":"US-014","reason":"consecutive_fail=3 >= after_fail","notify":"dev-alerts"}
-{"ts":"2026-07-28T15:02:00Z","event":"resume","node_id":"US014-mobile-screen","task_id":"US-014","from_status":"waiting_human","to_status":"ready","note":"sua STACK BINDING lint","by":"human"}
+{"ts":"2026-07-28T10:14:30Z","event":"handoff","node_id":"US014-designer-screen","task_id":"US-014","from":"designer","to":"client","message_id":"msg-US014-designer-screen-1","gate":"gate5","result":"pass","unblocked":["US014-client-screen"]}
+{"ts":"2026-07-28T11:40:12Z","event":"gate_check","node_id":"US014-client-screen","task_id":"US-014","gate":"gate3","result":"fail","consecutive_fail":1,"reason":"flutter analyze: 3 errors in otp_screen.dart"}
+{"ts":"2026-07-28T12:05:00Z","event":"sync_session","node_id":"US014-client-screen","task_id":"US-014","request_id":"sync-US014-01","participants":["client","cto"],"turns":2,"outcome":"resolved"}
+{"ts":"2026-07-28T13:20:00Z","event":"escalation","node_id":"US014-client-screen","task_id":"US-014","reason":"consecutive_fail=3 >= after_fail","notify":"dev-alerts"}
+{"ts":"2026-07-28T15:02:00Z","event":"resume","node_id":"US014-client-screen","task_id":"US-014","from_status":"waiting_human","to_status":"ready","note":"sua STACK BINDING lint","by":"human"}
 ```
 
 `node_id` cho phép trace vòng đời 1 node; `task_id` cho phép trace 1 story qua nhiều node (`grep task_id=US-014`).

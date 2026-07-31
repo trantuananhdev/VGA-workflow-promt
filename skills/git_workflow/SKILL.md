@@ -1,6 +1,6 @@
 # skill_git_workflow
 
-**Dùng bởi:** `dev-be`, `mobile`, `ads` (và `devops` cho phần tag/release — xem cuối file).
+**Dùng bởi:** `dev-be`, `client`, `ads` (và `devops` cho phần tag/release — xem cuối file).
 
 **Mục tiêu:** Chuẩn hoá thao tác git để mọi branch/commit/PR đều truy vết được về đúng `task_id` — Gate 3 verify bằng cách grep git log thật, không tin lời agent tự báo "xong".
 

@@ -1,14 +1,17 @@
 {
   "_comment": "SINGLE-WRITER INVARIANT — mỗi đường dẫn dữ liệu có ĐÚNG 1 unit được ghi. Đây là cơ chế chống race condition khi nhiều agent chạy song song (concurrency > 1): không có 2 writer thì không thể có tranh chấp, không cần lock. validate.py (nhóm F*) cưỡng chế bảng này.",
-  "_why": "Trước đây shared/mobile-capabilities.json bị 2 unit khác nhau ghi (mobile-shell viết permission, ads-setup viết phần ads) — và cả 2 đều status:ready ngay sau Gate 1 nên chạy song song theo đúng thiết kế DAG. Ở mức filesystem, 2 process ghi cùng 1 file = bên ghi sau đè mất dữ liệu bên ghi trước. Validator không bắt được vì nó chỉ thấy kết quả cuối cùng. Cách sửa duy nhất đúng: tách file theo writer.",
+  "_why": "Trước đây shared/mobile-capabilities.json (nay là shared/capabilities/client.json) bị 2 unit khác nhau ghi (client-shell viết permission, ads-setup viết phần ads) — và cả 2 đều status:ready ngay sau Gate 1 nên chạy song song theo đúng thiết kế DAG. Ở mức filesystem, 2 process ghi cùng 1 file = bên ghi sau đè mất dữ liệu bên ghi trước. Validator không bắt được vì nó chỉ thấy kết quả cuối cùng. Cách sửa duy nhất đúng: tách file theo writer.",
   "_owner_kinds": {
-    "<unit>": "tên unit trong kernel/contracts/dag.json (vd 'cto', 'mobile-shell') — dùng unit chứ không dùng role, để phân biệt mobile-shell vs mobile-screen",
+    "<unit>": "tên unit trong kernel/contracts/dag.json (vd 'cto', 'client-shell') — dùng unit chứ không dùng role, để phân biệt client-shell vs client-screen",
     "__kernel__": "chỉ Orchestrator hoặc kernel tool được ghi; agent tuyệt đối không",
     "__human__": "người điền tay, hệ thống chỉ đọc",
-    "__generated__": "SINH TỰ ĐỘNG bởi kernel/tools/ — không ai được sửa tay, kể cả người. Sửa tay = lệch với nguồn derived. Hiện tại: today.md (bởi digest.py)"
+    "__generated__": "SINH TỰ ĐỘNG bởi kernel/tools/ — không ai được sửa tay, kể cả người. Sửa tay = lệch với nguồn derived. Hiện tại: today.md (bởi digest.py)",
+    "__vendor__": "TÀI LIỆU/CODE THAM KHẢO đưa từ ngoài vào, không thuộc vòng đời agent nào. Không ai ghi, và validator KHÔNG quét bên trong (F4 bỏ qua cả cây). Xem _vendor_why.",
+    "__per_node__": "Mỗi node ghi vào ĐÚNG 1 đường dẫn con mang tên node_id của nó, nên nhiều instance không thể tranh chấp — cùng thủ pháp đã dùng cho kernel/boot/ và agents/<role>/memory/. Bắt buộc là thư mục (kết thúc bằng '/')."
   },
+  "_vendor_why": "shared/quy-trinh-xay-dung-app/ là 1 project Android hoàn chỉnh (~200 file) đưa vào làm tham khảo. Trước đây nó không được khai nên F4 sinh ~200 WARN MỖI LẦN CHẠY. Hậu quả không phải là ồn ào vô hại: nó chôn toàn bộ WARN thật (C21/C22/C30/C32/C34/C41b/G7/G10/D13 — tất cả đều báo bookkeeping drift), và tạo ra thói quen 'exit 0 thì bỏ qua warning'. Một kênh cảnh báo không đọc được thì bằng không có.",
   "_race_rule": "Nếu owner là unit có scope='story' VÀ đường dẫn là 1 FILE đơn VÀ role của unit đó có concurrency > 1 -> 2 instance của cùng unit (2 story khác nhau) sẽ ghi cùng file = race. Khi đó phải chọn: (a) đổi thành THƯ MỤC per-story (đường dẫn kết thúc bằng '/'), hoặc (b) đặt concurrency = 1 cho role đó. validate.py mã F3 cưỡng chế điều này.",
-  "_design_split_why": "shared/design/ TRƯỚC ĐÂY khai là 1 thư mục owner='designer'. Không dùng lại được sau khi agent `designer` tách 2 phase: `design-system` ghi tokens.json + theme-preview.html (1 lần/project), `designer-screen` ghi layout từng story — 2 unit khác nhau, cùng ready sau Gate 1 ở 2 thời điểm khác nhau. Giữ nguyên entry thư mục thì 2 unit đều có quyền ghi cùng vùng (validate.py mã F5 chặn). Cách sửa theo đúng tiền lệ shared/capabilities/ (native.json vs ads.json): KHÔNG khai thư mục cha, khai từng đường dẫn theo writer. Layout story vì thế chuyển vào thư mục con shared/design/screens/<story_id>.json — thư mục (không phải file đơn) nên designer.concurrency=2 vẫn an toàn (F3).",
+  "_design_split_why": "shared/design/ TRƯỚC ĐÂY khai là 1 thư mục owner='designer'. Không dùng lại được sau khi agent `designer` tách 2 phase: `design-system` ghi tokens.json + theme-preview.html (1 lần/project), `designer-screen` ghi layout từng story — 2 unit khác nhau, cùng ready sau Gate 1 ở 2 thời điểm khác nhau. Giữ nguyên entry thư mục thì 2 unit đều có quyền ghi cùng vùng (validate.py mã F5 chặn). Cách sửa theo đúng tiền lệ shared/capabilities/ (client.json vs ads.json): KHÔNG khai thư mục cha, khai từng đường dẫn theo writer. Layout story vì thế chuyển vào thư mục con shared/design/screens/<story_id>.json — thư mục (không phải file đơn) nên designer.concurrency=2 vẫn an toàn (F3).",
   "_component_registry_split_why": "shared/design/component-registry.core.json (file don, owner design-system, scope project) vs shared/design/component-registry/ (thu muc, owner designer-screen, scope story, concurrency=2) ap dung dung _race_rule + tien le _design_split_why o tren: 2 unit khac nhau cua cung agent designer khong the cung ghi 1 duong dan.",
   "_theme_choice_why": "shared/design/theme-choice.json owner='__human__' vì đây là QUYẾT ĐỊNH THẨM MỸ của người, không phải sản phẩm của agent. Người ghi qua `python kernel/tools/resume.py <node_id> --decision <theme_id>` (tool kernel ghi thay người, cùng cách resume.py ghi wbs.json owner='__kernel__'). Vì sao KHÔNG để agent `design-system` tự ghi lựa chọn vào tokens.json: nếu vậy thì không có mốc nào kiểm được là người đã thật sự chọn, gate7 lại thành 'agent tự nhận xong là xong' — đúng lỗi mà gate5 sinh ra để chặn. Agent ĐỌC file này rồi mới khoá tokens.json.",
   "schema_version": 1,
@@ -27,8 +30,12 @@
     "shared/design/screens/": "designer-screen",
     "shared/design/component-registry.core.json": "design-system",
     "shared/design/component-registry/": "designer-screen",
-    "shared/capabilities/native.json": "mobile-shell",
+    "shared/capabilities/client.json": "client-shell",
     "shared/capabilities/ads.json": "ads-setup",
+    "shared/bug-reports/": "qa",
+    "shared/quy-trinh-xay-dung-app/": "__vendor__",
+    "logs/": "__per_node__",
+    "agents/po/memory/epics.json": "po",
     "shared/lessons_learned.md": "__kernel__",
     "kernel/memory/wbs.json": "__kernel__",
     "kernel/memory/today.md": "__generated__",
@@ -39,8 +46,11 @@
     "kernel/contracts/dag.json": "__human__",
     "kernel/contracts/data-ownership.json": "__human__"
   },
+  "_bug_report_why": "bug_report TRUOC DAY khong nam trong bang nay du agents/qa/AGENT.md khai no la output va gate4 dua vao no. Do la dung ca ma _race_rule sinh ra de chan, nhung F3 khong the thay: F3 chi lap qua owners{} nen 1 file don KHONG duoc khai thi khong bao gio bi soi. Cu the: qa.concurrency=2, qa.scope=story -> 2 story fail cung luc thi ban bug_report cua story sau de mat ban cua story truoc, va QA bao 'da gui' trong khi dev doc bao cao cua story khac. Sua theo dung tien le shared/design/screens/: thu muc per-story shared/bug-reports/<STORY_ID>.md.",
+  "_logs_why": "logs/ la bat buoc trong handoff-contracts.md (artifact_refs) va D15 kiem su ton tai cua no, nhung truoc day khong ai so huu — va F4 chi glob shared/** nen khong ca CANH BAO. 4 unit cung ghi (dev-be, client-screen, ads-placement, devops-*). Owner __per_node__ vi quy uoc la logs/<node_id>/<ten-log>.txt: moi node 1 thu muc rieng nen khong the tranh chap.",
+  "_epics_why": "agents/po/memory/epics.json truoc day CHI nam trong khoi van xuoi _agent_private_files duoi day, khong o owners{} -> F1/F2/F3 khong bao gio danh gia no, nen rang buoc 'po.concurrency PHAI la 1' chi la tai lieu suong. Nay o owners{} thi F3 cuong che that: neu ai tang po.concurrency len >1 thi validator bao RACE ngay.",
   "_mailbox_note": "kernel/mailbox/ KHÔNG nằm trong bảng này vì nó là hàng đợi 1-file-1-message: mỗi agent tạo file mới với message_id riêng, không bao giờ 2 agent ghi cùng 1 file. Đây chính là lý do thiết kế mailbox theo file-per-message thay vì 1 file hàng đợi chung. Ngoại lệ duy nhất: field processed_at do Orchestrator set (agent đã ghi xong và không quay lại sửa).",
-  "_agent_memory_note": "agents/<role>/memory/ cũng KHÔNG nằm trong bảng này, vì nó dùng cùng thủ pháp: MỘT FILE MỖI NODE (`<node_id>.md`). Nhiều instance của cùng 1 agent (concurrency > 1) mỗi instance xử lý 1 node khác nhau nên ghi file khác nhau — không thể tranh chấp. TRƯỚC ĐÂY dùng chung 1 file `today.md` cho cả agent, đó là race thật với mobile (concurrency 3), dev-be (3), designer/ads/qa (2). validate.py mã F6 cưỡng chế quy ước đặt tên này.",
+  "_agent_memory_note": "agents/<role>/memory/ cũng KHÔNG nằm trong bảng này, vì nó dùng cùng thủ pháp: MỘT FILE MỖI NODE (`<node_id>.md`). Nhiều instance của cùng 1 agent (concurrency > 1) mỗi instance xử lý 1 node khác nhau nên ghi file khác nhau — không thể tranh chấp. TRƯỚC ĐÂY dùng chung 1 file `today.md` cho cả agent, đó là race thật với client (concurrency 3), dev-be (3), designer/ads/qa (2). validate.py mã F6 cưỡng chế quy ước đặt tên này.",
   "_agent_private_files": {
     "agents/po/memory/epics.json": "po — file đơn, nên po.concurrency PHẢI là 1 (đã ghi lý do trong agents/po/manifest.json)"
   },

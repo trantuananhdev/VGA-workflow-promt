@@ -24,6 +24,9 @@ import sys
 from collections import defaultdict
 from datetime import datetime, timezone
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _atomic import load_json_or_die, write_atomic
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -31,6 +34,13 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 
 WBS = os.path.join(ROOT, "kernel", "memory", "wbs.json")
 OUT = os.path.join(ROOT, "kernel", "memory", "today.md")
 MAILBOX = os.path.join(ROOT, "kernel", "mailbox")
+LIMITS = os.path.join(ROOT, "kernel", "config", "limits.json")
+
+# Moi status phai co cho trong digest. Neu them status moi vao validate.STATUSES ma quen o day
+# thi node o status do BIEN MAT khoi today.md (by=defaultdict chi tra bucket rong) — tuc Tier 0
+# noi doi voi MOI agent. KNOWN_STATUSES ton tai de main() doi chieu va bao thay vi im lang.
+KNOWN_STATUSES = {"blocked", "ready", "running", "waiting_sync", "done",
+                  "waiting_human", "awaiting_human_decision", "failed"}
 
 
 def now():
@@ -54,10 +64,15 @@ def unprocessed():
         for line in text[3:end].splitlines():
             if ":" in line:
                 k, v = line.split(":", 1)
-                fm[k.strip()] = v.strip()
+                # strip quote de dong y voi validate.parse_frontmatter va context_compile:
+                # truoc day 3 tool doc `processed_at: 'null'` theo 3 kieu khac nhau.
+                fm[k.strip()] = v.strip().strip("'\"")
         if fm.get("processed_at", "null") in ("null", "~", ""):
             out.append(fm)
     return out
+
+
+WAITING_SYNC = "waiting_sync"
 
 
 def build(wbs):
@@ -65,6 +80,11 @@ def build(wbs):
     by = defaultdict(list)
     for n in nodes:
         by[n.get("status")].append(n)
+    unknown = {n.get("status") for n in nodes} - KNOWN_STATUSES
+    if unknown:
+        print(f"CANH BAO: status {sorted(unknown)} chua co muc nao trong digest -> node o "
+              f"status do BIEN MAT khoi today.md. Them muc vao digest.py (Tier 0 phai phu het).",
+              file=sys.stderr)
 
     def label(n):
         u = n.get("phase") or n.get("role")
@@ -102,6 +122,25 @@ def build(wbs):
     else:
         L.append("- (khong co node nao dang chay)")
     L.append("")
+
+    # Dang cho tra loi Sync Session — KHONG phai loi, va KHONG phai "dang chay".
+    # Tach rieng vi 2 ly do: (a) node nay da nha slot concurrency nen doc gia khong duoc tuong
+    # role do dang bi chiem cho; (b) neu gop vao "Dang chay" thi C28 (stale running) va nguoi
+    # doc deu chan doan sai thanh "agent hang".
+    if by[WAITING_SYNC]:
+        L.append("## Dang cho tra loi Sync Session (khong phai loi, khong giu slot)")
+        for n in by[WAITING_SYNC]:
+            g = n.get("gate") or {}
+            answering = [m for m in nodes if m.get("sync_for_node") == n.get("node_id")]
+            L.append(f"- {label(n)} — cho `{g.get('sync_waiting_for')}`")
+            if answering:
+                who = ", ".join("`{}` ({})".format(m.get("node_id"), m.get("status"))
+                                for m in answering)
+                L.append(f"  - ben tra loi: {who}")
+            else:
+                L.append(f"  - ⚠ KHONG co sync node nao tra loi -> node nay treo mai. "
+                         f"Xem validate.py ma `C41` (ORCHESTRATOR.md §7d)")
+        L.append("")
 
     L.append("## San sang chay ngay (ready)")
     if by["ready"]:
@@ -203,19 +242,35 @@ def main():
     ap.add_argument("--stdout", action="store_true", help="in ra thay vi ghi file")
     args = ap.parse_args()
 
-    if not os.path.exists(WBS):
-        print("LOI: khong tim thay kernel/memory/wbs.json", file=sys.stderr)
-        return 2
-    with open(WBS, encoding="utf-8") as f:
-        wbs = json.load(f)
+    # load_json_or_die: truoc day json.load khong bao try -> wbs.json hong thi buoc cuoi
+    # Event Loop (ORCHESTRATOR.md §7b) chet bang traceback tho thay vi noi ro phai sua gi.
+    wbs = load_json_or_die(WBS, "kernel/memory/wbs.json")
 
     text = build(wbs)
+
+    # Nguong tier0_max_lines truoc day la CONFIG CHET: limits.json ghi ro "digest.py phai giu
+    # duoi nguong nay" nhung digest.py khong he doc field do. today.md duoc nap vao MOI agent
+    # nen no phinh to la thue danh len toan he thong, khong phai len 1 agent.
+    cap = 0
+    if os.path.exists(LIMITS):
+        try:
+            with open(LIMITS, encoding="utf-8") as f:
+                cap = ((json.load(f).get("context") or {}).get("tier0_max_lines")) or 0
+        except Exception:
+            cap = 0
+    n_lines = len(text.splitlines())
+    if cap and n_lines > cap:
+        print(f"CANH BAO: today.md {n_lines} dong > tier0_max_lines={cap} "
+              f"(kernel/config/limits.json). Tier 0 nap vao MOI agent nen day la thue toan he "
+              f"thong. Xem lai muc nao dang dai nhat — thuong la danh sach 'Da xong' hoac so "
+              f"node blocked.", file=sys.stderr)
+
     if args.stdout:
         print(text)
     else:
-        with open(OUT, "w", encoding="utf-8") as f:
-            f.write(text)
-        print(f"Da ghi {os.path.relpath(OUT, ROOT)} ({len(text.splitlines())} dong)")
+        write_atomic(OUT, text)   # xem kernel/tools/_atomic.py
+        print(f"Da ghi {os.path.relpath(OUT, ROOT)} ({n_lines} dong"
+              f"{f', nguong {cap}' if cap else ''})")
     return 0
 
 

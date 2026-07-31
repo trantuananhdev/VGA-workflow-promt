@@ -23,8 +23,8 @@
 
 ## Skill được phép gọi
 
-- `skill_run_lint`, `skill_run_unit_test` (định nghĩa cụ thể theo stack thật của dự án)
-- `git_workflow` (dùng chung với `mobile`/`ads` — xem `skills/git_workflow/SKILL.md`, bắt buộc cho mọi branch/commit/PR)
+- `run_lint`, `run_unit_test` (định nghĩa cụ thể theo stack thật của dự án)
+- `git_workflow` (dùng chung với `client`/`ads` — xem `skills/git_workflow/SKILL.md`, bắt buộc cho mọi branch/commit/PR)
 
 ## Verification bắt buộc trước khi báo "xong"
 

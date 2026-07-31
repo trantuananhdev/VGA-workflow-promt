@@ -1,6 +1,35 @@
 {
-  "_comment": "SSOT duy nhất cho 'project này cần capability-agent tuỳ chọn nào'. Do PO ghi (qua agents/po/commands/new-idea.md) ngay lúc intake, CTO xác nhận lại trong Gate 1. generate_wbs BẮT BUỘC đọc file này trước khi sinh wbs.json — không tự đoán project cần gì. Repo này THUẦN Mobile nên không còn field project_types (web-application dùng repo riêng).",
+  "_comment": "SSOT cho 2 thứ ở cấp project: (1) capability-agent tuỳ chọn nào được bật, (2) TÍN HIỆU THÔ từ đề bài (product_signals). Do PO ghi (qua agents/po/commands/new-idea.md) ngay lúc intake, CTO đọc lại trong Gate 1. generate_wbs BẮT BUỘC đọc file này + shared/contracts/tech-stack.json trước khi sinh wbs.json — không tự đoán project cần gì.",
+  "_no_longer_mobile_only": "TRƯỚC ĐÂY file này ghi 'repo THUẦN Mobile' và cả kernel mặc định mobile: unit mobile-shell/mobile-screen cố định trong dag.json, mọi project đều sinh node cho chúng. Từ nay LOẠI SẢN PHẨM do ĐỀ BÀI quyết định (gián tiếp): PO ghi product_signals -> CTO chạy agents/cto/skills/decide_tech_stack -> ghi delivery_targets + stack vào shared/contracts/tech-stack.json -> dag.json bật/tắt unit theo đó (only_if). Vì vậy KHÔNG có field nào ở đây khai nền tảng: PO không được quyết công nghệ.",
+  "_two_writers_would_be_a_race": "delivery_targets CỐ Ý không nằm ở file này dù nó cũng là dữ liệu cấp project: file này owner=po, còn quyết định stack là của cto. 2 writer trên 1 file = race (kernel/contracts/data-ownership.json). Vì vậy tín hiệu thô ở đây (po), kết luận stack ở shared/contracts/tech-stack.json (cto).",
+
   "project_id": null,
   "active_capability_agents": [],
-  "_active_capability_agents_note": "Chỉ liệt kê agent có core:false trong manifest.json (hiện tại: \"ads\") mà project NÀY thực sự cần. Mobile app hoàn toàn có thể KHÔNG cần ads — để mảng rỗng thì agent ads không bao giờ được spawn."
+  "_active_capability_agents_note": "Chỉ liệt kê agent có core:false trong manifest.json (hiện tại: \"ads\") mà project NÀY thực sự cần. Để mảng rỗng thì agent đó không bao giờ được spawn. Lưu ý: `ads` chỉ hợp lệ khi project CÓ client (tech-stack.json -> delivery_targets chứa mobile_native hoặc web_app) — backend thuần không có chỗ đặt quảng cáo.",
+
+  "_product_signals_note": "TÍN HIỆU THÔ, do PO ghi từ lời khách/đề bài. Đây là NGÔN NGỮ NGHIỆP VỤ, không phải công nghệ: PO KHÔNG được viết tên nền tảng/framework vào đây (viết 'làm app Android' là đã quyết thay CTO). Mỗi field null = CHƯA HỎI; rỗng/false = đã hỏi và câu trả lời là không. CTO đọc đúng bảng này để suy ra stack; thiếu tín hiệu nào thì hỏi lại PO/BA qua Sync Session, không tự giả định.",
+  "product_signals": {
+    "how_users_arrive": null,
+    "_how_users_arrive": "Người dùng tới sản phẩm bằng cách nào: \"tai_app_tu_store\" | \"mo_link_tren_browser\" | \"he_thong_khac_goi_api\" | \"nhieu_duong\" — tín hiệu MẠNH NHẤT quyết định delivery target.",
+    "primary_device": null,
+    "_primary_device": "\"dien_thoai\" | \"may_tinh\" | \"ca_hai\" | \"khong_co_nguoi_dung_truc_tiep\"",
+    "needs_offline": null,
+    "_needs_offline": "true nếu phải dùng được khi mất mạng (đếm hàng trong kho, ghi chú ngoài hiện trường).",
+    "device_features_needed": [],
+    "_device_features_needed": "Khả năng thiết bị mà nghiệp vụ THẬT SỰ cần: camera, gps, bluetooth, thong_bao_day, sinh_trac_hoc, quet_nfc, chay_ngam... Ghi bằng nhu cầu nghiệp vụ, không ghi tên API.",
+    "needs_search_engine_discovery": null,
+    "_needs_search_engine_discovery": "true nếu khách cần Google tìm ra được / chia sẻ link có preview — tín hiệu đẩy về web + render phía server.",
+    "data_shared_between_users": null,
+    "_data_shared_between_users": "true nếu dữ liệu người này người khác phải thấy (đơn hàng, tin nhắn, xếp hạng) => cần backend. false = dữ liệu chỉ nằm trên máy người dùng.",
+    "needs_realtime": null,
+    "_needs_realtime": "true nếu phải cập nhật ngay mà không cần tải lại (chat, theo dõi tài xế).",
+    "expected_scale": null,
+    "_expected_scale": "Ước lượng thô số người dùng đồng thời/tháng đầu — chuỗi tự do ngắn.",
+    "compliance_constraints": [],
+    "_compliance_constraints": "vd thanh_toan, du_lieu_suc_khoe, du_lieu_tre_em, gdpr — ảnh hưởng cả stack lẫn gate.",
+    "existing_assets": [],
+    "_existing_assets": "Cái đã có mà phải dùng lại: repo cũ, backend đang chạy, template nội bộ, kỹ năng sẵn của team. Đây là tín hiệu HỢP LỆ để CTO chọn stack quen thay vì stack 'tốt hơn trên giấy'.",
+    "hard_constraints": null,
+    "_hard_constraints": "Deadline/ngân sách/ràng buộc khách áp đặt — chuỗi ngắn. Ghi cả khi khách CHỈ ĐỊNH công nghệ: khi đó CTO vẫn phải ghi lý do + đánh đổi vào tech-stack.json, không nhận suông."
+  }
 }

@@ -43,7 +43,7 @@ PRD từ brief thô hầu như luôn thiếu `blocked_by_other_user`, `message_f
 
 ## 4. Quy ước platform (chỉ chỗ iOS và Android KHÁC nhau)
 
-- **Thông báo đẩy cho tin nhắn:** iOS gộp nhóm theo thread trong Notification Center khác cách Android gộp theo app — layout thông báo rich (ảnh preview, quick reply) khai báo khác nhau ở tầng native, nêu rõ cho `mobile-shell`.
+- **Thông báo đẩy cho tin nhắn:** iOS gộp nhóm theo thread trong Notification Center khác cách Android gộp theo app — layout thông báo rich (ảnh preview, quick reply) khai báo khác nhau ở tầng native, nêu rõ cho `client-shell`.
 - **Chia sẻ bài đăng ra ngoài app:** share sheet (iOS) vs intent chooser (Android) — nội dung chia sẻ (ảnh + link) phải test cả 2 vì preview card render khác nhau.
 - **Chọn ảnh/video để đăng:** iOS PHPicker giới hạn quyền truy cập thư viện ảnh (chọn ảnh cụ thể thay vì cấp toàn bộ) khác với Android Photo Picker — layout nút "chọn thêm ảnh" cần tính tới việc user không cấp full-access.
 - **Vuốt để xoá/trả lời tin nhắn:** chuẩn iOS là vuốt trái/phải trên bong bóng chat; Android thường dùng long-press mở menu. Không chỉ có 1 cách.

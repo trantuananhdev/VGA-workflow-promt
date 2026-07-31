@@ -2,7 +2,7 @@
 
 **Dùng bởi:** `designer`, phase `designer-screen` (riêng, không dùng chung role khác).
 
-**Mục tiêu:** Từ 1 User Story (PRD slice) + data shape (`api-contracts.json` slice) + design token đã khoá (`tokens.json`) + domain của story (`domain-map.json`), sinh layout JSON — không phải ảnh/prose mô tả, để `mobile` (phase `mobile-screen`) parse trực tiếp thay vì phải "đọc hiểu" mô tả bằng lời.
+**Mục tiêu:** Từ 1 User Story (PRD slice) + data shape (`api-contracts.json` slice) + design token đã khoá (`tokens.json`) + domain của story (`domain-map.json`), sinh layout JSON — không phải ảnh/prose mô tả, để `mobile` (phase `client-screen`) parse trực tiếp thay vì phải "đọc hiểu" mô tả bằng lời.
 
 **Input:** anchor-tag slice của `shared/PRD.md` + `shared/system-spec.md` (story_id đang xử lý) + slice `shared/contracts/api-contracts.json` + slice `shared/contracts/domain-map.json` + `token_keys` từ handoff của `design-system`
 
@@ -151,4 +151,4 @@ Handoff từ `design-system` cố ý chỉ mang **tên** key. Nếu layout mang 
 - **Tự quét lại toàn bộ layout tìm giá trị style hard-code** (chuỗi bắt đầu `#`, số trần ở field spacing/radius/size). Còn 1 chỗ = Gate 5 fail.
 - Mọi `token:` trỏ key **tồn tại** trong `token_keys` đã nhận từ handoff.
 - `design_metrics_declared` khớp số đếm thật, và không vượt ngưỡng ở `kernel/config/limits.json` → `design`.
-- Handoff body đủ field theo cạnh `designer-screen → mobile-screen` trong `kernel/rules/handoff-contracts.md`: `ui_states_count`, `data_bindings_summary`, `domains_applied` (+ `draft_domains` nếu có), `token_keys_used`, có slot quảng cáo hay không.
+- Handoff body đủ field theo cạnh `designer-screen → client-screen` trong `kernel/rules/handoff-contracts.md`: `ui_states_count`, `data_bindings_summary`, `domains_applied` (+ `draft_domains` nếu có), `token_keys_used`, có slot quảng cáo hay không.

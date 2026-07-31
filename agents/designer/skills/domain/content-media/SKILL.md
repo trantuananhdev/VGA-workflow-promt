@@ -43,7 +43,7 @@ PRD từ brief thô hầu như luôn thiếu `content_unavailable_in_region`, `s
 
 ## 4. Quy ước platform (chỉ chỗ iOS và Android KHÁC nhau)
 
-- **Phát nhạc/video nền + điều khiển từ màn khoá:** iOS qua MPNowPlayingInfoCenter/Remote Command Center, Android qua MediaSession — cả 2 đều cần cấu hình native riêng, layout điều khiển (nút tua/dừng) trên màn khoá do hệ điều hành vẽ, không phải do app vẽ — nêu rõ cho `mobile-shell`.
+- **Phát nhạc/video nền + điều khiển từ màn khoá:** iOS qua MPNowPlayingInfoCenter/Remote Command Center, Android qua MediaSession — cả 2 đều cần cấu hình native riêng, layout điều khiển (nút tua/dừng) trên màn khoá do hệ điều hành vẽ, không phải do app vẽ — nêu rõ cho `client-shell`.
 - **Phát qua thiết bị ngoài:** AirPlay (iOS) vs Chromecast (Android/cả 2) là 2 SDK khác nhau hoàn toàn — nút "phát tới thiết bị khác" cần xử lý riêng từng nền tảng, không dùng chung 1 icon giả định hành vi giống nhau.
 - **Tải offline giới hạn dung lượng:** cách hệ thống báo dung lượng còn trống khác nhau — app nên tự kiểm tra và báo trước khi gọi API hệ thống.
 - **Picture-in-Picture cho video:** giống lưu ý ở `education-learning` — cấu hình khai báo khác nhau giữa 2 nền tảng.

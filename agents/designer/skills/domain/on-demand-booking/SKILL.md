@@ -37,7 +37,7 @@ PRD viết từ brief thô hầu như luôn thiếu `partner_timeout`, `slot_una
 - **Giá đổi sau khi xác nhận** mà không có màn thông báo riêng → cảm giác bị lừa. Mọi thay đổi giá phải có state riêng, user phải bấm đồng ý lại.
 - **Timeline trạng thái làm bằng 1 dòng text đổi nội dung** → user không biết đã qua bước nào, còn bao nhiêu bước. Dùng danh sách bước có đánh dấu.
 - **Chọn thời gian mặc định là "ngay bây giờ" nhưng không nói rõ** → user đặt nhầm giờ. Trạng thái mặc định phải hiển thị tường minh.
-- **Trạng thái đơn đổi khi app đang đóng** → cần thiết kế cả thông báo đẩy, không chỉ màn hình. Nêu rõ trong layout để `mobile-shell` biết là cần push (nếu `native.json` chưa khai → Sync Session `cto`).
+- **Trạng thái đơn đổi khi app đang đóng** → cần thiết kế cả thông báo đẩy, không chỉ màn hình. Nêu rõ trong layout để `client-shell` biết là cần push (nếu `client.json` chưa khai → Sync Session `cto`).
 - **Đơn cũ trong lịch sử mở ra lại thành màn "đang theo dõi"** → phải có state read-only cho đơn đã đóng.
 
 ## 4. Quy ước platform (chỉ chỗ iOS và Android KHÁC nhau)

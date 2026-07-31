@@ -1,16 +1,16 @@
 # system-spec.md — Đặc tả hệ thống cấp phi-chức-năng (do CTO ghi)
 
-> Cùng quy ước anchor tag: `<!-- tier:2 role:cto,designer,dev-be,mobile,devops,qa story:<STORY_ID> -->`
+> Cùng quy ước anchor tag: `<!-- tier:2 role:cto,designer,dev-be,client,devops,qa story:<STORY_ID> -->`
 > Đây là nơi ghi những thứ KHÔNG thuộc 1 màn hình cụ thể (PRD) hay 1 quyết định kiến trúc cụ thể (architecture.md),
 > mà là ràng buộc/hành vi hệ thống xuyên suốt: luồng lỗi, giới hạn, bảo mật, hiệu năng.
 
 ---
 
-<!-- tier:2 role:cto,designer,mobile,devops story:PROJ -->
+<!-- tier:2 role:cto,designer,client,devops story:PROJ -->
 ### PROJ: Ràng buộc cấp project ảnh hưởng tới UI
 
 > Do CTO ghi 1 lần/project, trước Gate 1. Phase `design-system` dùng mục này để biết token phải
-> chịu ràng buộc gì; `mobile-shell` dùng để biết platform target. (Ví dụ mẫu — xoá khi có project thật.)
+> chịu ràng buộc gì; `client-shell` dùng để biết platform target. (Ví dụ mẫu — xoá khi có project thật.)
 
 **Platform mục tiêu + min OS:** <vd iOS 15+, Android 8+ — quyết định dùng quy ước iOS HIG hay Material ở chỗ 2 bên khác nhau>
 
@@ -24,7 +24,7 @@
 
 ---
 
-<!-- tier:2 role:cto,designer,dev-be,mobile,devops,qa story:US-000 -->
+<!-- tier:2 role:cto,designer,dev-be,client,devops,qa story:US-000 -->
 ### US-000: (ví dụ mẫu — xoá khi có story thật)
 
 **Luồng lỗi hệ thống (error states):**

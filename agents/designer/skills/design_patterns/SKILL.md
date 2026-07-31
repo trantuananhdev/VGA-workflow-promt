@@ -37,7 +37,7 @@ Nạp ở **bước 0** cùng lúc với `domain` skill, dùng ở **bước 3.5
 | 1. Bố cục màn hình chủ đạo | Thứ tự khối, cái gì trên/dưới fold, `order` của component |
 | 2. Hierarchy & emphasis | Field `emphasis` từng component — quyết định đâu là primary duy nhất |
 | 3. Cấu trúc bên trong component | `component_need` chi tiết tới mức từng phần bên trong, không chỉ "1 cái card" |
-| 4. Interaction & motion | Field `interaction` — trigger/action/target_state, và ghi chú motion cho `mobile-screen` |
+| 4. Interaction & motion | Field `interaction` — trigger/action/target_state, và ghi chú motion cho `client-screen` |
 | 5. Nguồn + ranh giới IP | Biết cái gì được lấy, cái gì tuyệt đối không |
 
 ## Cấu trúc bắt buộc của 1 file pattern

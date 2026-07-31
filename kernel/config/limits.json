@@ -25,10 +25,10 @@
   },
   "responsive": {
     "_note": "Nguong cho validate.py nhom E22, do tren shared/design/screens/<story>.json -> responsive_declared + components[].responsive. Bac kich thuoc / orientation / font scale THAT thi doc o shared/design/tokens.json -> responsive_contract (do design-system chot theo system-spec.md), KHONG dat o day: chung la quyet dinh CUA PROJECT, con day chi la tran co dinh cua control plane.",
-    "_why_this_block_exists": "Truoc day khong co 1 field nao trong hop dong may doc noi ve kich thuoc man hinh: tokens.json khong co breakpoint, screen-layout.schema.json khong co width/orientation/font-scale. Lever duy nhat la string tu do `group`. Hau qua dung bang lop loi ma on_null/text_overflow sinh ra de chan: designer khai 'xong', Gate 5 pass, mobile-screen code theo, va layout chi vo tren may that cua nguoi dung.",
+    "_why_this_block_exists": "Truoc day khong co 1 field nao trong hop dong may doc noi ve kich thuoc man hinh: tokens.json khong co breakpoint, screen-layout.schema.json khong co width/orientation/font-scale. Lever duy nhat la string tu do `group`. Hau qua dung bang lop loi ma on_null/text_overflow sinh ra de chan: designer khai 'xong', Gate 5 pass, client-screen code theo, va layout chi vo tren may that cua nguoi dung.",
     "_threshold_philosophy": "Cung tinh than design._threshold_philosophy: dat o muc 'gan nhu chac chan SAI', khong phai 'ly tuong'. Vi du 3 cot tren man 360dp thi gan nhu chac chan vo, con 2 cot thi con tranh luan duoc — nen nguong la 2.",
     "max_children_without_degrade_order": 3,
-    "_degrade_why": "Khoi co nhieu hon so con nay ma khong khai `degrade_order` = khi het cho thi mobile-screen tu chon cai gi bi cat. Va no se cat sai thu tu: cat du lieu truoc khi cat nhan (xem agents/designer/skills/responsive_layout/SKILL.md muc 4).",
+    "_degrade_why": "Khoi co nhieu hon so con nay ma khong khai `degrade_order` = khi het cho thi client-screen tu chon cai gi bi cat. Va no se cat sai thu tu: cat du lieu truoc khi cat nhan (xem agents/designer/skills/responsive_layout/SKILL.md muc 4).",
     "max_columns_compact": 2,
     "_columns_why": "Tran so cot o bac compact_small/compact (< 600dp). Can cu tier 1: M3 window size class compact <600dp. 3 cot card tren man 360dp thi moi cot con ~110dp — khong du cho anh + ten 2 dong + gia.",
     "max_pinned_regions_per_state": 2,

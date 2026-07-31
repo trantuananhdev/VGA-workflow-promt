@@ -1,15 +1,58 @@
 {
-  "_comment": "SSOT tech stack do CTO chot, dung de designer/component_discovery khoanh vung tim thu vien UI theo dung platform/ngon ngu. entries dung 'story_id':'PROJ' vi day la du lieu cap project (theo dung quy uoc PROJECT_STORY_KEY cua context_compile.py), khong phai theo tung story.",
+  "_comment": "SSOT MAY DOC cua tech stack + LOAI SAN PHAM. WRITER DUY NHAT: cto (xem kernel/contracts/data-ownership.json), sinh boi agents/cto/skills/decide_tech_stack/. Day la ban co dac cua phan 'Tech stack da chon' trong shared/architecture.md — ghi ca 2 noi, khong thay the nhau: architecture.md cho NGUOI doc hieu, file nay cho MAY doc (dag.json bat/tat unit, client chon platform pack, designer khoanh vung tim thu vien UI).",
+  "_why_this_file_decides_the_dag": "TRUOC DAY kernel co dinh mobile: unit mobile-shell/mobile-screen luon sinh node, moi project deu la app dien thoai. Gio DE BAI quyet dinh (gian tiep): po ghi kernel/memory/project-profile.json -> product_signals (tin hieu tho, ngon ngu nghiep vu) -> cto suy ra delivery_targets o day -> generate_wbs CHI sinh node cho unit co only_if THOA. Vi vay delivery_targets khong phai metadata: no la INPUT CUA SCHEDULER. Sai o day = ca WBS sai.",
+  "_two_stage_like_tokens": "Giong shared/design/tokens.json, file nay co 2 giai doan: (1) cto chay decide_tech_stack -> dien day du, `locked: false`, de ba/cto doi chieu trong Sync Session; (2) truoc khi ky Gate 1 -> `locked: true` + `locked_at`. Tu luc khoa, doi stack la doi ca DAG nen phai qua doc_drift_detected + ba/cto, KHONG sua tay (xem kernel/rules/ssot-precedence.md).",
   "schema_version": 1,
+  "locked": false,
+  "locked_at": null,
+  "delivery_targets": [],
+  "_delivery_targets_note": "MANG, ⊂ {\"mobile_native\", \"web_app\", \"backend_service\"}, KHONG duoc rong. Day la field kernel doc de bat/tat unit: has_client = giao voi {mobile_native, web_app} khac rong -> bat design-system/designer-screen/client-shell/client-screen; has_backend = chua backend_service -> bat dev-be. Vi du hop le: [\"web_app\",\"backend_service\"] (web co API rieng), [\"mobile_native\",\"backend_service\"], [\"backend_service\"] (API thuan, khong co man hinh nao), [\"web_app\"] (web local-first, khong co backend rieng).",
+  "_decision_note": "PHAI co bang chung, khong nhan ket luan suong. Moi phan tu evidence tro ve 1 tin hieu THAT trong project-profile.product_signals hoac 1 cau THAT trong shared/PRD.md — de nguoi sau doi chieu duoc, va de Gate 1 khong tro thanh 'cto tu nhan la xong'.",
+  "decision": {
+    "decided_at": null,
+    "decided_by": "cto",
+    "evidence": [],
+    "_evidence_shape": "[{ \"signal\": \"how_users_arrive=mo_link_tren_browser\", \"source\": \"project-profile.product_signals\", \"implication\": \"web_app\" }, { \"signal\": \"data_shared_between_users=true\", \"source\": \"project-profile.product_signals\", \"implication\": \"backend_service\" }] — it nhat 1 phan tu cho MOI delivery_target da chon.",
+    "alternatives_rejected": [],
+    "_alternatives_shape": "[{ \"option\": \"mobile_native (Kotlin)\", \"why_not\": \"khong co tin hieu nao doi capability thiet bi; how_users_arrive=mo_link_tren_browser\" }] — it nhat 1 phan tu. Chon ma khong loai bo gi = chua so sanh.",
+    "open_risks": [],
+    "_open_risks_shape": "[{ \"risk\": \"...\", \"trigger_to_revisit\": \"...\" }] — rui ro da BIET nhung chap nhan, kem dieu kien phai xem lai. Khong che rui ro de gate de pass hon."
+  },
+  "_entries_note": "1 entry cho MOI delivery_target. story_id LUON la \"PROJ\" (du lieu cap project, theo quy uoc PROJECT_STORY_KEY cua context_compile.py). `roles` quyet dinh AI DOC DUOC entry (context_compile.py loc theo do): client can de chon platform pack, designer can de khoanh vung thu vien UI, dev-be can runtime, devops PHAI co trong CA HAI entry — pipeline phai khop build_system cua tung phan (pipeline Gradle cho project Vite la loi chi lo o lan release dau), va kieu release o Gate 6 khac nhau theo target. LUU Y: chi node scope=project/release nhan duoc slice nay (khoa PROJ); node scope=story nhu dev-be/qa nhan stack qua handoff cua cto, khong doc lai file nay.",
   "entries": [
     {
       "story_id": "PROJ",
-      "roles": ["designer"],
-      "platform": "<android|ios|flutter|...>",
-      "ui_framework": "<jetpack_compose|swiftui|uikit|flutter|...>",
-      "language": "<kotlin|swift|dart|...>",
-      "build_system": "<gradle|spm|cocoapods|pub|...>",
-      "min_sdk": "<vd 24 (Android API) hoac '15.0' (iOS)>"
+      "roles": [
+        "designer",
+        "client",
+        "devops",
+        "qa"
+      ],
+      "delivery_target": "<mobile_native | web_app>",
+      "platform_pack": "<mobile-native | web-spa — PHAI la ten thu muc THAT trong agents/client/skills/platform/>",
+      "stack_pack": "<vd vga31-kotlin, hoac null neu khong dung stack pack noi bo>",
+      "platform": "<android|ios|browser|...>",
+      "ui_framework": "<jetpack_compose|swiftui|react|vue|svelte|...>",
+      "language": "<kotlin|swift|typescript|...>",
+      "build_system": "<gradle|spm|vite|next|...>",
+      "min_target": "<vd 24 (Android API) | '15.0' (iOS) | 'browserslist: >0.5%, not dead'>",
+      "_min_target_note": "Nguong nen tang toi thieu. KHONG ghim nguong store/browser dang hanh vao day cho muc dich compliance — cai do do skill compliance cua platform pack tra tai thoi diem chay (nguong het han theo thoi gian)."
+    },
+    {
+      "story_id": "PROJ",
+      "roles": [
+        "dev-be",
+        "devops",
+        "qa"
+      ],
+      "delivery_target": "backend_service",
+      "platform": "<linux_container|serverless|...>",
+      "language": "<typescript|go|python|kotlin|...>",
+      "framework": "<nestjs|fastapi|spring|...>",
+      "datastore": "<postgres|mysql|mongo|... — phai khop shared/db-schema.md>",
+      "build_system": "<npm|gradle|poetry|...>",
+      "runtime_target": "<vd node 22, jvm 21, python 3.12>"
     }
-  ]
+  ],
+  "_entries_example_warning": "2 entry tren la VI DU MAU cho thay dung SHAPE. cto PHAI xoa entry cua target KHONG duoc chon — con entry cua target khong nam trong delivery_targets la mau thuan noi bo (validate.py ma E24), va thieu entry cho target da chon cung vay."
 }

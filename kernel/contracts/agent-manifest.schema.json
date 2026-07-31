@@ -15,7 +15,7 @@
     },
     "core": {
       "type": "boolean",
-      "description": "true = backbone, luôn active (po/ba/cto/designer/dev-be/mobile/devops/qa). false = capability-agent tuỳ chọn (vd ads) — chỉ active khi kernel/memory/project-profile.json khai trong active_capability_agents. Đây là NƠI DUY NHẤT khai core (dag.json không khai) vì bật/tắt là bật/tắt cả agent, không lẻ từng phase."
+      "description": "true = backbone, luôn active (po/ba/cto/designer/dev-be/client/devops/qa). false = capability-agent tuỳ chọn (vd ads) — chỉ active khi kernel/memory/project-profile.json khai trong active_capability_agents. Đây là NƠI DUY NHẤT khai core (dag.json không khai) vì bật/tắt là bật/tắt cả agent, không lẻ từng phase."
     },
     "model_tier": {
       "type": "string",

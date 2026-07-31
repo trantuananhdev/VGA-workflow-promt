@@ -2,7 +2,7 @@
 
 **Dùng bởi:** `designer`, cả 2 phase (`design-system` và `designer-screen`) — giống `domain`, không riêng 1 phase như `generate_wireframe`.
 
-**Mục tiêu:** Tìm thư viện UI/component thật, đã tồn tại, đúng tech stack của project — thay vì `mobile-screen` phải tự tìm hoặc tự build lại từ đầu mỗi story. Khoanh vùng tìm kiếm bằng `shared/contracts/tech-stack.json` (platform/ui_framework/language) chứ không tìm chung chung ("spin wheel library" mà không biết Android hay iOS là vô nghĩa).
+**Mục tiêu:** Tìm thư viện UI/component thật, đã tồn tại, đúng tech stack của project — thay vì `client-screen` phải tự tìm hoặc tự build lại từ đầu mỗi story. Khoanh vùng tìm kiếm bằng `shared/contracts/tech-stack.json` (platform/ui_framework/language) chứ không tìm chung chung ("spin wheel library" mà không biết Android hay iOS là vô nghĩa).
 
 **Input:**
 - (`design-system`) slice `shared/contracts/tech-stack.json` (entry `story_id: "PROJ"`) — platform/ui_framework/language/build_system/min_sdk cấp toàn app
@@ -67,14 +67,14 @@ B. MINI SEARCH — CHỈ chạy khi bước A không tìm được component cor
 
 4. KHÔNG có lib nào đủ tiêu chí -> KHÔNG được chọn đại 1 lib không phù hợp.
    Ghi `"chosen": null, "custom_needed": true` kèm `custom_note` giải thích vì sao,
-   để `mobile-screen` biết cần tự implement chứ không tốn công tìm thêm.
+   để `client-screen` biết cần tự implement chứ không tốn công tìm thêm.
 
 5. Ghi vào đúng file theo phase (xem Output ở trên). KHÔNG trộn core và story-level.
 ```
 
 ## Vì sao `verified_url` là điều kiện, không phải gợi ý
 
-Domain skill chỉ đưa ra pitfall/pattern (không cần xác minh vì đó là tri thức thiết kế). Component discovery đưa ra **tên riêng của phần mềm thật** — sai 1 cái là `mobile-screen` build theo 1 dependency không tồn tại. Đây là lý do `verified_url`/`custom_needed` là 2 field máy có thể kiểm được (Gate 5 điều 7, Gate 7 điều 7) thay vì chỉ dựa vào lời văn "đã kiểm tra".
+Domain skill chỉ đưa ra pitfall/pattern (không cần xác minh vì đó là tri thức thiết kế). Component discovery đưa ra **tên riêng của phần mềm thật** — sai 1 cái là `client-screen` build theo 1 dependency không tồn tại. Đây là lý do `verified_url`/`custom_needed` là 2 field máy có thể kiểm được (Gate 5 điều 7, Gate 7 điều 7) thay vì chỉ dựa vào lời văn "đã kiểm tra".
 
 ## Verify trước khi emit handoff
 
@@ -84,4 +84,4 @@ Domain skill chỉ đưa ra pitfall/pattern (không cần xác minh vì đó là
 - Không có entry nào vừa `chosen: null` vừa `custom_needed` không set (thiếu = chưa xong).
 - (`designer-screen`) Mọi `component_need` từ `generate_wireframe` bước 3.5 đã được resolve — hoặc `reused_from_core`, hoặc có kết quả mini search (bước B), không còn need nào bỏ ngỏ.
 - (`design-system`) `core_components_chosen` (tên, không phải url) được đưa vào handoff sang `designer-screen`.
-- (`designer-screen`) `components_used` (tên + `custom_needed`) được đưa vào handoff sang `mobile-screen`.
+- (`designer-screen`) `components_used` (tên + `custom_needed`) được đưa vào handoff sang `client-screen`.

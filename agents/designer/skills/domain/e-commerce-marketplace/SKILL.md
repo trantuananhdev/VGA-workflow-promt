@@ -44,7 +44,7 @@ PRD từ brief thô hầu như luôn thiếu `stock_changed_in_cart`, `payment_p
 
 ## 4. Quy ước platform (chỉ chỗ iOS và Android KHÁC nhau)
 
-- **Thanh toán trong app:** nếu bán **hàng số/nội dung số** thì iOS bắt buộc In-App Purchase (Apple thu 15-30%); hàng vật lý thì được dùng cổng ngoài. Ảnh hưởng trực tiếp tới luồng checkout → nêu rõ trong layout, đừng để `mobile-screen` phát hiện lúc submit store.
+- **Thanh toán trong app:** nếu bán **hàng số/nội dung số** thì iOS bắt buộc In-App Purchase (Apple thu 15-30%); hàng vật lý thì được dùng cổng ngoài. Ảnh hưởng trực tiếp tới luồng checkout → nêu rõ trong layout, đừng để `client-screen` phát hiện lúc submit store.
 - **Apple Pay / Google Pay:** vị trí và hình dạng nút do guideline của từng bên quy định, **không** được vẽ nút tự tạo. Layout phải để chỗ cho nút gốc.
 - **Chia sẻ sản phẩm:** iOS share sheet vs Android intent chooser — nội dung chia sẻ giống nhau nhưng điểm gọi khác nhau.
 - **Swipe để xoá item trong giỏ:** là chuẩn iOS; Android thường dùng nút xoá tường minh. Đừng chỉ có swipe.

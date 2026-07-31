@@ -44,7 +44,7 @@ PRD từ brief thô hầu như luôn thiếu `sync_conflict`, `recurring_item_ed
 ## 4. Quy ước platform (chỉ chỗ iOS và Android KHÁC nhau)
 
 - **Widget màn hình chính / màn khoá:** WidgetKit (iOS) vs App Widgets (Android) có giới hạn tương tác khác nhau (iOS widget hạn chế tương tác trực tiếp hơn) — nếu PRD muốn "tick việc ngay từ widget" cần kiểm khả năng thật của từng nền tảng trước khi vẽ.
-- **Đồng bộ nền:** Background App Refresh (iOS) bị hệ thống giới hạn nghiêm ngặt hơn WorkManager (Android) — với app cần đồng bộ thường xuyên, độ trễ đồng bộ có thể khác nhau giữa 2 nền tảng, nêu rõ cho `mobile-shell`/`cto`.
+- **Đồng bộ nền:** Background App Refresh (iOS) bị hệ thống giới hạn nghiêm ngặt hơn WorkManager (Android) — với app cần đồng bộ thường xuyên, độ trễ đồng bộ có thể khác nhau giữa 2 nền tảng, nêu rõ cho `client-shell`/`cto`.
 - **Kéo-thả sắp xếp (kanban/lịch):** hành vi haptic feedback khi kéo khác nhau — cả 2 nền tảng đều cần, nhưng API triển khai khác.
 - **Chia sẻ nhanh từ app khác vào (share extension/intent):** iOS Share Extension và Android Share Intent là 2 cơ chế khác nhau hoàn toàn — nếu PRD muốn "lưu nhanh từ app khác", cần thiết kế 2 luồng riêng.
 

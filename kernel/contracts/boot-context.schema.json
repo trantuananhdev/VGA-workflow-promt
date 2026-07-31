@@ -29,13 +29,13 @@
     "role": { "type": "string" },
     "phase": {
       "type": ["string", "null"],
-      "description": "null nếu agent 1 phase. Với agent nhiều phase (mobile/ads/devops), đây là thứ quyết định agent chạy nhánh nào trong AGENT.md của nó."
+      "description": "null nếu agent 1 phase. Với agent nhiều phase (designer/client/ads/devops), đây là thứ quyết định agent chạy nhánh nào trong AGENT.md của nó."
     },
     "track": { "type": "string", "enum": ["intake", "build", "runtime"] },
     "track_id": { "type": ["string", "null"] },
     "story_id": {
       "type": ["string", "null"],
-      "description": "null với node scope=project/release (vd PROJ-mobile-shell) — không phải lỗi, agent phải xử lý được cả 2 trường hợp."
+      "description": "null với node scope=project/release (vd PROJ-client-shell) — không phải lỗi, agent phải xử lý được cả 2 trường hợp."
     },
 
     "gate": {

@@ -20,7 +20,7 @@
 
 ## Output hợp lệ
 
-- Cập nhật `shared/PRD.md`, mỗi block có anchor tag `<!-- tier:2 role:ba,cto,designer,dev-be,mobile,qa story:US-xxx -->`
+- Cập nhật `shared/PRD.md`, mỗi block có anchor tag `<!-- tier:2 role:ba,cto,designer,dev-be,client,qa story:US-xxx -->`
 - **Khối `story:PROJ` trong `shared/PRD.md`** — design intent cấp project (xem checklist B dưới). Đây là input **duy nhất** của phase `design-system`; thiếu nó thì `design-system` phải tự bịa brand/tông màu.
 - `shared/contracts/domain-map.json` — bản đồ domain theo story (`ba` là writer duy nhất, xem `kernel/contracts/data-ownership.json`)
 - Emit `type: handoff` tới CTO sau khi draft xong 1 Epic

@@ -1,6 +1,6 @@
 # Bo nho lam viec cua agent — MOT FILE MOI NODE
 
-> **Quy uoc bat buoc:** `<node_id>.md`, vi du `US014-mobile-screen.md`, `BUG042-qa.md`.
+> **Quy uoc bat buoc:** `<node_id>.md`, vi du `US014-client-screen.md`, `BUG042-qa.md`.
 > **KHONG dung 1 file chung** (truoc day la `today.md`).
 
 ## Vi sao

@@ -1,0 +1,40 @@
+{
+  "_comment": "Capability/quyền mà VỎ ỨNG DỤNG HIỆN CÓ. WRITER DUY NHẤT: unit `client-shell` (xem kernel/contracts/data-ownership.json). Đây là BẢN KHAI CỦA VỎ THẬT, không phải bản mong muốn: lệch với manifest/plist thật (mobile) hoặc header/webmanifest thật (web) = coi như chưa xong.",
+  "_readers": "client-screen, ads-setup, ads-placement, qa, devops — CHỈ ĐỌC. Cần quyền mới thì mở Sync Session với cto, không tự thêm vào file này.",
+  "_rename_note": "TRƯỚC ĐÂY file này là shared/capabilities/native.json và chỉ biểu diễn được app native — vì cả repo mặc định là mobile. Từ khi tech stack do đề bài quyết định (shared/contracts/tech-stack.json), file phải mang được cả web: khối chung ở gốc + khối riêng theo target. Đổi tên chứ không thêm file thứ hai, vì 1 project có ĐÚNG 1 vỏ client -> 1 writer (client-shell). Trước đó nữa nó từng là shared/mobile-capabilities.json gộp cả phần `ads` và bị 2 unit ghi song song (race) — phần ads đã tách sang shared/capabilities/ads.json.",
+  "_only_if": "File này chỉ có nội dung khi project CÓ client (tech-stack.json -> delivery_targets chứa mobile_native hoặc web_app). Project backend_service thuần thì unit client-shell không tồn tại (dag.json only_if) -> để nguyên trạng rỗng.",
+
+  "schema_version": 1,
+  "target": null,
+  "_target_note": "mobile_native | web_app — PHẢI khớp entry `PROJ` (roles chứa `client`) trong shared/contracts/tech-stack.json. Lệch = vỏ đang dựng khác stack đã chốt ở Gate 1.",
+  "platform_pack": null,
+  "_platform_pack_note": "Tên thư mục pack đã dùng, vd \"mobile-native\" / \"web-spa\" (+ stack_pack nếu có, vd \"vga31-kotlin\"). Ghi ra đây để qa/devops biết đối chiếu ngưỡng của pack nào, không phải tự suy từ tên framework.",
+  "stack_pack": null,
+
+  "permissions": [],
+  "_permissions_note": "Dùng cho CẢ 2 target — native permission (camera, location…) và browser permission API (geolocation, camera, notification…). vd { \"key\": \"camera\", \"story_id\": \"US-014\", \"reason\": \"chụp ảnh gửi hỗ trợ\" } — mọi quyền PHẢI trỏ về đúng 1 story cần nó (least-privilege). Quyền không story nào cần = phải gỡ.",
+
+  "_mobile_note": "CHỈ điền khi target = mobile_native. Ngưỡng min/target SDK hiện hành do agents/client/skills/platform/mobile-native/check_platform_compliance/ tra — KHÔNG ghim số vào đây vì nó hết hạn theo thời gian.",
+  "mobile": {
+    "min_os": { "android_min_sdk": null, "ios_deployment_target": null },
+    "target_sdk": { "android": null },
+    "push_notification": { "configured": false, "provider": null },
+    "deep_linking": { "configured": false, "domain": null }
+  },
+
+  "_web_note": "CHỈ điền khi target = web_app. render_mode phải kèm LÝ DO (SEO/chia sẻ link -> SSR|SSG; dữ liệu riêng sau đăng nhập -> SPA) — mode sai chỉ lộ ra khi preview/SEO không hoạt động, lúc đó sửa là viết lại tầng render. pwa CHỈ bật khi product_signals.offline_need = true.",
+  "web": {
+    "render_mode": null,
+    "render_mode_reason": null,
+    "browser_support": [],
+    "csp": { "configured": false, "allows_unsafe_inline_script": false },
+    "security_headers": [],
+    "seo": { "needed": null, "sitemap": false, "robots": false },
+    "pwa": { "enabled": false, "offline_scope": null },
+    "perf_budget": { "bundle_kb": null, "lcp_ms": null, "cls": null, "inp_ms": null },
+    "measured": { "bundle_kb": null, "lcp_ms": null, "cls": null, "inp_ms": null }
+  },
+
+  "platform_compliance": { "checked_at": null, "violations": [] },
+  "_compliance_note": "violations PHẢI rỗng trước khi client-screen bắt đầu (Gate 3, điều kiện riêng của phase client-shell): sửa vỏ sau khi đã build N story lên trên là việc đắt nhất trong pipeline. Skill kiểm là check_platform_compliance (mobile) hoặc check_web_platform_compliance (web)."
+}

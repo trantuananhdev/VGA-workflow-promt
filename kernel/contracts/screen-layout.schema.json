@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "screen-layout.schema.json",
-  "title": "Screen Layout (designer-screen -> mobile-screen)",
-  "description": "Schema cho shared/design/screens/<story_id>.json — hợp đồng máy đọc duy nhất giữa `designer-screen` (writer) và `mobile-screen` (reader). Mỗi COMPONENT là 1 đơn vị kiểm được độc lập, không phải 1 khối phẳng.",
+  "title": "Screen Layout (designer-screen -> client-screen)",
+  "description": "Schema cho shared/design/screens/<story_id>.json — hợp đồng máy đọc duy nhất giữa `designer-screen` (writer) và `client-screen` (reader). Mỗi COMPONENT là 1 đơn vị kiểm được độc lập, không phải 1 khối phẳng.",
 
-  "_why_this_exists": "TRƯỚC ĐÂY layout JSON chỉ được định nghĩa bằng ĐÚNG 1 DÒNG trong agents/designer/skills/generate_wireframe/SKILL.md: `{ screen_id, states, components, data_bindings, ad_slots }` — không schema, không ví dụ (shared/design/screens/ rỗng, chỉ có .gitkeep), không check. Hệ quả đo được: Gate 5 chỉ kiểm ĐẾM ở mức màn hình (số state >= số acceptance criteria) và tính hợp lệ của token ref — không có gì kiểm được TỪNG component bên trong. Đó là chỗ sinh 'bug vặt': field null không ai xử lý, nút bấm dẫn tới state không tồn tại, input không có validation, text dài làm vỡ layout. Cả 2 lớp lỗi này (logic + hiển thị) chỉ lộ ra ở Gate 4 (QA) hoặc khi người dùng thật gặp — trong khi chúng hoàn toàn kiểm được ở tầng dữ liệu, TRƯỚC khi mobile-screen sinh 1 dòng code nào.",
+  "_why_this_exists": "TRƯỚC ĐÂY layout JSON chỉ được định nghĩa bằng ĐÚNG 1 DÒNG trong agents/designer/skills/generate_wireframe/SKILL.md: `{ screen_id, states, components, data_bindings, ad_slots }` — không schema, không ví dụ (shared/design/screens/ rỗng, chỉ có .gitkeep), không check. Hệ quả đo được: Gate 5 chỉ kiểm ĐẾM ở mức màn hình (số state >= số acceptance criteria) và tính hợp lệ của token ref — không có gì kiểm được TỪNG component bên trong. Đó là chỗ sinh 'bug vặt': field null không ai xử lý, nút bấm dẫn tới state không tồn tại, input không có validation, text dài làm vỡ layout. Cả 2 lớp lỗi này (logic + hiển thị) chỉ lộ ra ở Gate 4 (QA) hoặc khi người dùng thật gặp — trong khi chúng hoàn toàn kiểm được ở tầng dữ liệu, TRƯỚC khi client-screen sinh 1 dòng code nào.",
 
   "_divide_and_conquer": "Component KHÔNG phẳng: field `parent` cho phép bẻ 1 card thành các phần bên trong (ảnh / tên / giá / rating), mỗi phần là 1 entry riêng có contract riêng và được kiểm riêng. Đây là hiện thực của triết lý 'chia để trị' ở tầng dữ liệu: kiểm 1 card như 1 khối thì không phát hiện được 'giá bị null không ai xử lý'; bẻ ra từng phần thì phát hiện được bằng máy.",
 
@@ -43,7 +43,7 @@
           },
           "entered_when": {
             "type": ["string", "null"],
-            "description": "Điều kiện/nguyên nhân vào state này, viết bằng chữ cho `mobile-screen` hiểu. Bắt buộc khác null với mọi kind != 'success' — không nói rõ 'khi nào lỗi này xảy ra' thì dev phải tự đoán, và đó là nguồn lỗi logic."
+            "description": "Điều kiện/nguyên nhân vào state này, viết bằng chữ cho `client-screen` hiểu. Bắt buộc khác null với mọi kind != 'success' — không nói rõ 'khi nào lỗi này xảy ra' thì dev phải tự đoán, và đó là nguồn lỗi logic."
           },
           "recovery_action": {
             "type": ["string", "null"],
@@ -91,7 +91,7 @@
               "progress_indicator", "skeleton", "empty_illustration",
               "ad_slot"
             ],
-            "description": "Enum ĐÓNG, cố ý: type tự do thì `mobile-screen` phải đoán widget native tương ứng, và mỗi story sẽ đoán khác nhau. Đóng thì việc map type -> widget của từng platform quyết định ĐÚNG 1 LẦN."
+            "description": "Enum ĐÓNG, cố ý: type tự do thì `client-screen` phải đoán widget native tương ứng, và mỗi story sẽ đoán khác nhau. Đóng thì việc map type -> widget của từng platform quyết định ĐÚNG 1 LẦN."
           },
 
           "appears_in_states": {
@@ -119,7 +119,7 @@
 
           "group": {
             "type": ["string", "null"],
-            "description": "Nhãn nhóm logic (vd 'product_meta') để `mobile-screen` biết các phần nào KHÔNG được tách rời nhau khi wrap/xuống dòng. Khác `parent`: parent là quan hệ chứa, group là quan hệ 'cùng thuộc về nhau'. Khác `responsive`: group nói CÁI GÌ đi cùng nhau, còn `responsive` nói khối chứa PHẢN ỨNG THẾ NÀO — group một mình không đủ để chặn vỡ layout, và trước khi có `responsive` thì nó là lever DUY NHẤT trong cả hợp đồng."
+            "description": "Nhãn nhóm logic (vd 'product_meta') để `client-screen` biết các phần nào KHÔNG được tách rời nhau khi wrap/xuống dòng. Khác `parent`: parent là quan hệ chứa, group là quan hệ 'cùng thuộc về nhau'. Khác `responsive`: group nói CÁI GÌ đi cùng nhau, còn `responsive` nói khối chứa PHẢN ỨNG THẾ NÀO — group một mình không đủ để chặn vỡ layout, và trước khi có `responsive` thì nó là lever DUY NHẤT trong cả hợp đồng."
           },
 
           "responsive": {
@@ -154,7 +154,7 @@
               "degrade_order": {
                 "type": "array",
                 "items": { "type": "string" },
-                "description": "component_id của các CON THẬT của khối này, theo thứ tự bị bỏ/thu gọn TRƯỚC khi hết chỗ (phần tử đầu bỏ trước). Bắt buộc không rỗng khi số con vượt `max_children_without_degrade_order` (limits.json -> responsive). Bỏ trống = mobile-screen tự chọn cái gì bị cắt, và nó sẽ cắt DỮ LIỆU trước khi cắt NHÃN — sai thứ tự, xem agents/designer/skills/responsive_layout/SKILL.md mục 4."
+                "description": "component_id của các CON THẬT của khối này, theo thứ tự bị bỏ/thu gọn TRƯỚC khi hết chỗ (phần tử đầu bỏ trước). Bắt buộc không rỗng khi số con vượt `max_children_without_degrade_order` (limits.json -> responsive). Bỏ trống = client-screen tự chọn cái gì bị cắt, và nó sẽ cắt DỮ LIỆU trước khi cắt NHÃN — sai thứ tự, xem agents/designer/skills/responsive_layout/SKILL.md mục 4."
               },
               "sizing": {
                 "type": "string",

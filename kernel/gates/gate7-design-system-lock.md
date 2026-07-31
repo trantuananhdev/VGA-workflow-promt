@@ -1,6 +1,6 @@
 # Gate 7 — Design System Lock (gate DUY NHẤT cần người quyết định)
 
-> Số gate đánh theo **thứ tự tạo ra**, không theo thứ tự trong DAG. Gate này chạy rất sớm (sau `design-system`, song song `mobile-shell`/`devops-infra`/`dev-be`), **trước** Gate 5 của `designer-screen`.
+> Số gate đánh theo **thứ tự tạo ra**, không theo thứ tự trong DAG. Gate này chạy rất sớm (sau `design-system`, song song `client-shell`/`devops-infra`/`dev-be`), **trước** Gate 5 của `designer-screen`.
 
 **Chạy khi:** unit `design-system` emit `type: handoff` (node `PROJ-design-system`).
 
@@ -34,7 +34,7 @@ Trộn 2 trạng thái này lại sẽ làm `gate.consecutive_fail` mất nghĩa
 
    Điều này ở Gate 7 chứ không ở Gate 5 vì đây là chỗ **duy nhất** trong hệ thống mà người nhìn thấy thiết kế trước khi có code. Một phương án theme vỡ ở 320dp hoặc cắt chữ ở cỡ chữ lớn thì lỗi nằm ở **nhịp spacing / type scale của chính theme đó** — bắt ở đây thì sửa 1 file, còn để lọt xuống Gate 5 thì N story đã vẽ lên trên nó và mỗi story phải tự xoay. Đúng lý do file HTML này tồn tại thay vì 1 bảng màu.
 
-Điều 6 quan trọng với tầng network: thiếu `token_keys`/`core_components_chosen` thì mọi node `designer-screen` phải mở lại `tokens.json`/`component-registry.core.json` — mất đúng lợi ích "cô đặc message" mà hợp đồng cạnh này thiết kế ra. Điều 7 chặn rủi ro lớn nhất của `component_discovery`: AI liệt kê 1 thư viện không có thật rồi `mobile-screen` build theo mới phát hiện ra.
+Điều 6 quan trọng với tầng network: thiếu `token_keys`/`core_components_chosen` thì mọi node `designer-screen` phải mở lại `tokens.json`/`component-registry.core.json` — mất đúng lợi ích "cô đặc message" mà hợp đồng cạnh này thiết kế ra. Điều 7 chặn rủi ro lớn nhất của `component_discovery`: AI liệt kê 1 thư viện không có thật rồi `client-screen` build theo mới phát hiện ra.
 
 ---
 
@@ -47,7 +47,7 @@ node.gate.consecutive_fail      → GIỮ NGUYÊN (không tăng)
 notify(escalation.json["design"])   # thông báo thường: "có 3 phương án chờ chọn"
 ```
 
-Node **nhả slot concurrency** (capacity chỉ đếm `status: running` — xem `ORCHESTRATOR.md` §2), nên mọi nhánh song song khác (`mobile-shell`, `devops-infra`, `dev-be`) **chạy bình thường** trong lúc chờ. Chỉ nhánh `designer-screen` → `mobile-screen` bị chặn.
+Node **nhả slot concurrency** (capacity chỉ đếm `status: running` — xem `ORCHESTRATOR.md` §2), nên mọi nhánh song song khác (`client-shell`, `devops-infra`, `dev-be`) **chạy bình thường** trong lúc chờ. Chỉ nhánh `designer-screen` → `client-screen` bị chặn.
 
 Người xem `shared/design/theme-preview.html` bằng browser rồi:
 
@@ -77,4 +77,4 @@ Node `PROJ-design-system` → `done`; `RECOMPUTE_READY()` mở khoá **mọi** n
 
 ## Đánh đổi đã biết (không che)
 
-Story **đầu tiên** của project không thể bắt đầu `designer-screen` cho tới khi người chọn theme — thêm đúng **1 vòng chờ người** vào đường găng, xảy ra **1 lần/project**, không lặp lại per-story. Đổi lại: bỏ được rủi ro sửa hướng style sau khi đã build N story, và mọi story sau đó không còn phải tự quyết style. Nhánh `dev-be`/`mobile-shell`/`devops-infra` **không** bị ảnh hưởng vì chúng không phụ thuộc `design-system`.
+Story **đầu tiên** của project không thể bắt đầu `designer-screen` cho tới khi người chọn theme — thêm đúng **1 vòng chờ người** vào đường găng, xảy ra **1 lần/project**, không lặp lại per-story. Đổi lại: bỏ được rủi ro sửa hướng style sau khi đã build N story, và mọi story sau đó không còn phải tự quyết style. Nhánh `dev-be`/`client-shell`/`devops-infra` **không** bị ảnh hưởng vì chúng không phụ thuộc `design-system`.

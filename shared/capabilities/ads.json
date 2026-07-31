@@ -1,6 +1,6 @@
 {
-  "_comment": "Cấu hình quảng cáo. WRITER DUY NHẤT: unit `ads-setup` (xem kernel/contracts/data-ownership.json). Tách khỏi native.json vì 2 unit khác nhau ghi 2 phần, chạy song song sau Gate 1 -> nếu cùng file thì race, mất dữ liệu.",
-  "_readers": "ads-placement, mobile-screen, qa, devops — CHỈ ĐỌC.",
+  "_comment": "Cấu hình quảng cáo. WRITER DUY NHẤT: unit `ads-setup` (xem kernel/contracts/data-ownership.json). Tách khỏi shared/capabilities/client.json (vỏ client) vì 2 unit khác nhau ghi 2 phần, chạy song song sau Gate 1 -> nếu cùng file thì race, mất dữ liệu.",
+  "_readers": "ads-placement, client-screen, qa, devops — CHỈ ĐỌC.",
   "_only_if": "File này chỉ có nội dung khi agent `ads` được kích hoạt trong kernel/memory/project-profile.json (active_capability_agents). Project không cần quảng cáo thì để nguyên trạng rỗng.",
 
   "configured": false,

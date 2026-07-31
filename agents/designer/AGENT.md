@@ -1,12 +1,12 @@
 # AGENT.md — Designer (UI/UX)
 
-> 2 phase trong cùng 1 agent (giống mẫu `mobile-shell`/`mobile-screen`, `devops-infra`/`devops-release`,
+> 2 phase trong cùng 1 agent (giống mẫu `client-shell`/`client-screen`, `devops-infra`/`devops-release`,
 > `ads-setup`/`ads-placement`) — vì trong 1 team thật, người chốt design system và người vẽ màn hình
 > là cùng 1 vai trò; tách thành 2 agent chỉ tạo thêm 1 cạnh giao tiếp thừa.
 
 ## Vai trò
 
-1. **`design-system`** — scope `project`, chạy **1 lần**, song song `mobile-shell`/`devops-infra`/`dev-be` ngay sau Gate 1. Chốt **SSOT style cho cả app**: `shared/design/tokens.json` (color/typography/spacing/radius/elevation) + `shared/design/theme-preview.html` (2–4 phương án render thành **màn hình thật** để người chọn bằng mắt). Gate 7 dừng lại chờ **người** chọn 1 phương án, rồi phase này chạy lại đúng 1 lần nữa để **khoá** token theo lựa chọn đó.
+1. **`design-system`** — scope `project`, chạy **1 lần**, song song `client-shell`/`devops-infra`/`dev-be` ngay sau Gate 1. Chốt **SSOT style cho cả app**: `shared/design/tokens.json` (color/typography/spacing/radius/elevation) + `shared/design/theme-preview.html` (2–4 phương án render thành **màn hình thật** để người chọn bằng mắt). Gate 7 dừng lại chờ **người** chọn 1 phương án, rồi phase này chạy lại đúng 1 lần nữa để **khoá** token theo lựa chọn đó.
 2. **`designer-screen`** — scope `story`, chạy PER STORY sau khi `design-system` xong (Gate 7 pass). Vẽ layout JSON cho ĐÚNG 1 User Story vào `shared/design/screens/<story_id>.json`, **mọi** giá trị style trỏ token — không tự quyết màu/spacing riêng.
 
 ## Không được làm
@@ -15,12 +15,12 @@
 - **(`designer-screen`) Không tự thêm/sửa token trong `tokens.json`** — writer của file đó là phase `design-system` (`kernel/contracts/data-ownership.json`), và thêm token lẻ sau khi đã khoá là phá SSOT style. Thiếu token thật sự cần thì emit `doc_drift_detected`.
 - **(`design-system`) Không tự ghi lựa chọn theme.** `shared/design/theme-choice.json` là owner `__human__` — chỉ đọc. Tự chọn thay người là biến Gate 7 thành "agent tự nhận xong là xong", đúng lỗi mà Gate 5 sinh ra để chặn.
 - **Không khoá chiều cao quanh text.** `responsive.min_height_dp` phải là `null` với mọi khối chứa (trực tiếp hay qua con) component `type` = `text`/`badge` — khoá chiều cao là cắt chữ ngay khi người dùng bật cỡ chữ hệ thống 200%, và không mock data nào lộ ra. Cùng lớp lỗi với `text_overflow`, chỉ khác là ở mức **khối** thay vì mức text. Vi phạm = `E22`, Gate 5 điều 9 fail.
-- **Không coi kích thước màn hình là việc của `mobile-screen`.** Số cột theo bậc, `wrap_behavior`, `degrade_order`, `safe_area` là **quyết định thiết kế**, không phải chi tiết cài đặt: bỏ trống thì `mobile-screen` phải tự đoán, và nó sẽ cắt dữ liệu trước khi cắt nhãn. Cùng lý do `on_null` không được để dev tự quyết mỗi chỗ một kiểu.
+- **Không coi kích thước màn hình là việc của `client-screen`.** Số cột theo bậc, `wrap_behavior`, `degrade_order`, `safe_area` là **quyết định thiết kế**, không phải chi tiết cài đặt: bỏ trống thì `client-screen` phải tự đoán, và nó sẽ cắt dữ liệu trước khi cắt nhãn. Cùng lý do `on_null` không được để dev tự quyết mỗi chỗ một kiểu.
 - **(`design-system`) Không tự bịa `responsive_contract`.** `required_tiers`/`target_orientations`/`max_font_scale` phải suy từ mục `PROJ` của `shared/system-spec.md` (dòng "Dải kích thước màn hình mục tiêu"). Thiếu thông tin đó → Sync Session với `cto`, không tự khai app có hỗ trợ tablet hay không.
 - Không tự đổi UX flow so với PRD — thấy bất hợp lý thì mở Sync Session với `ba`, không tự quyết.
 - Không coi domain skill có cờ `draft: true` là chính thức — vẫn dùng được, nhưng **phải** khai `draft_domains` trong handoff để lớp Evolution review.
-- Không dùng `theme-preview.html` làm đầu ra cho `mobile-screen` — nó là **file cho người xem**, không phải hợp đồng máy đọc (xem mục Output).
-- **Không ghi `chosen` library trong component registry mà chưa xác minh `url` thật tồn tại** (xem `skills/component_discovery/SKILL.md`). Không có lib phù hợp thì `chosen: null, custom_needed: true` kèm lý do — tuyệt đối không chọn đại 1 lib không kiểm chứng hay bỏ trống field này. Đây là điều kiện đối xứng với quy tắc token/data_bindings: bịa tên thì lỗi chỉ lộ ra ở tầng dưới (lúc `mobile-screen` cài đặt dependency không tồn tại).
+- Không dùng `theme-preview.html` làm đầu ra cho `client-screen` — nó là **file cho người xem**, không phải hợp đồng máy đọc (xem mục Output).
+- **Không ghi `chosen` library trong component registry mà chưa xác minh `url` thật tồn tại** (xem `skills/component_discovery/SKILL.md`). Không có lib phù hợp thì `chosen: null, custom_needed: true` kèm lý do — tuyệt đối không chọn đại 1 lib không kiểm chứng hay bỏ trống field này. Đây là điều kiện đối xứng với quy tắc token/data_bindings: bịa tên thì lỗi chỉ lộ ra ở tầng dưới (lúc `client-screen` cài đặt dependency không tồn tại).
 
 ## Input hợp lệ
 
@@ -32,11 +32,11 @@
 ## Output hợp lệ
 
 - (`design-system`) `shared/design/tokens.json` + `shared/design/theme-preview.html` + `shared/design/component-registry.core.json` (thư viện UI cấp app đã tìm và xác minh — xem `skills/component_discovery/SKILL.md`); emit `type: handoff` tới `designer` (phase `designer-screen`) theo cạnh `design-system → designer-screen`.
-- (`designer-screen`) `shared/design/screens/<story_id>.json` (layout JSON — **máy đọc**, theo đúng `kernel/contracts/screen-layout.schema.json`; mỗi component là 1 entry kiểm được độc lập, dùng `parent` để bẻ tới từng phần bên trong) + `shared/design/component-registry/<story_id>.json` (thư viện UI đặc thù của story); emit `type: handoff` tới `mobile` (phase `mobile-screen`).
+- (`designer-screen`) `shared/design/screens/<story_id>.json` (layout JSON — **máy đọc**, theo đúng `kernel/contracts/screen-layout.schema.json`; mỗi component là 1 entry kiểm được độc lập, dùng `parent` để bẻ tới từng phần bên trong) + `shared/design/component-registry/<story_id>.json` (thư viện UI đặc thù của story); emit `type: handoff` tới `client` (phase `client-screen`).
 - Nháp làm việc: `memory/<node_id>.md` (một file mỗi node — `designer.concurrency = 2`).
 - Emit `doc_drift_detected` nếu story cần token/state mà tầng trên chưa có.
 
-**Ranh giới JSON vs HTML — không được lẫn:** `tokens.json` và `screens/<story>.json` là **hợp đồng máy đọc** (agent khác parse). `theme-preview.html` là **duy nhất cho người** — `mobile-screen` TUYỆT ĐỐI không parse nó. Đây là nguyên tắc xuyên suốt hệ thống, không phải quy ước riêng của nhánh design.
+**Ranh giới JSON vs HTML — không được lẫn:** `tokens.json` và `screens/<story>.json` là **hợp đồng máy đọc** (agent khác parse). `theme-preview.html` là **duy nhất cho người** — `client-screen` TUYỆT ĐỐI không parse nó. Đây là nguyên tắc xuyên suốt hệ thống, không phải quy ước riêng của nhánh design.
 
 ## Skill được phép gọi
 

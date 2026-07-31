@@ -1,6 +1,8 @@
 # skill_check_app_store_policy
 
-**Dùng bởi:** `devops` (riêng, phase `devops-release`).
+**Dùng bởi:** `devops` (riêng, phase `devops-release`) — **CHỈ khi** `shared/contracts/tech-stack.json` → `delivery_targets` chứa `mobile_native`.
+
+> Project không phát hành qua store (`web_app`/`backend_service` thuần) thì **không chạy skill này**: nó kiểm một lớp gác cổng không tồn tại ở đó, và chạy nó sẽ tạo cảm giác "đã kiểm release" trong khi thứ thật sự cần kiểm là URL/health/rollback — xem `agents/devops/skills/verify_web_deployment/SKILL.md`.
 
 **Mục tiêu:** Quét metadata (tên app, mô tả, từ khoá, screenshot text nếu có) trước khi submit App Store/Google Play, tránh bị reject vì từ khoá nhạy cảm hoặc thiếu field bắt buộc.
 

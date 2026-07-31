@@ -2,7 +2,7 @@
 
 **Dùng bởi:** `qa` (riêng).
 
-**Input:** story_id, build artifact từ `dev-be` + `mobile` (phase `mobile-screen`)
+**Input:** story_id, build artifact từ `dev-be` + `client` (phase `client-screen`)
 
 **Quy trình:**
 ```

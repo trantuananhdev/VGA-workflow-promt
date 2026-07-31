@@ -14,11 +14,11 @@
     "message_id": {
       "type": "string",
       "pattern": "^msg-.+-[0-9]+$",
-      "description": "ID duy nhất của CHÍNH message này. QUY ƯỚC CẤP PHÁT BẮT BUỘC: `msg-<node_id>-<n>`, với n = 1 + số message hiện có trong kernel/mailbox/ cùng node_id đó. Ví dụ: msg-US014-mobile-screen-1. Vì sao không đánh số tự do (msg-0031): 1 node chỉ có ĐÚNG 1 agent instance ghi, nên đánh số trong phạm vi node là không thể trùng; còn đánh số toàn cục thì 2 agent chạy song song (concurrency > 1) sẽ cùng chọn 1 số và ghi đè file của nhau. Validator cưỡng chế bằng D16 (trùng) và D17 (sai quy ước)."
+      "description": "ID duy nhất của CHÍNH message này. QUY ƯỚC CẤP PHÁT BẮT BUỘC: `msg-<node_id>-<n>`, với n = 1 + số message hiện có trong kernel/mailbox/ cùng node_id đó. Ví dụ: msg-US014-client-screen-1. Vì sao không đánh số tự do (msg-0031): 1 node chỉ có ĐÚNG 1 agent instance ghi, nên đánh số trong phạm vi node là không thể trùng; còn đánh số toàn cục thì 2 agent chạy song song (concurrency > 1) sẽ cùng chọn 1 số và ghi đè file của nhau. Validator cưỡng chế bằng D16 (trùng) và D17 (sai quy ước)."
     },
     "node_id": {
       "type": "string",
-      "description": "ĐỊA CHỈ SCHEDULER — node trong kernel/memory/wbs.json của agent GỬI message này (luôn là node của người gửi, mọi type). Với handoff: đây là node vừa hoàn thành, Orchestrator đánh dấu nó done rồi tính lại runnable-set. Với request/response: đây là node đang bị block chờ câu trả lời. Thiếu field này thì Orchestrator KHÔNG biết message đóng node nào (1 story có nhiều node: dev-be, mobile-screen, qa...)."
+      "description": "ĐỊA CHỈ SCHEDULER — node trong kernel/memory/wbs.json của agent GỬI message này (luôn là node của người gửi, mọi type). Với handoff: đây là node vừa hoàn thành, Orchestrator đánh dấu nó done rồi tính lại runnable-set. Với request/response: đây là node đang bị block chờ câu trả lời. Thiếu field này thì Orchestrator KHÔNG biết message đóng node nào (1 story có nhiều node: dev-be, client-screen, qa...)."
     },
     "request_id": {
       "type": "string",

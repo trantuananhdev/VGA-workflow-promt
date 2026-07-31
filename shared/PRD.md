@@ -7,7 +7,7 @@
 >
 > **`story:PROJ` là STORY_ID đặc biệt** — dành cho thông tin cấp project (không thuộc story nào).
 > `context_compile.py` dùng khoá `PROJ` để trích Tier 2 cho node `scope: project`/`release`
-> (`design-system`, `mobile-shell`, `devops-infra`, `ads-setup`) — trước đây những node này
+> (`design-system`, `client-shell`, `devops-infra`, `ads-setup`) — trước đây những node này
 > nhận Tier 2 **rỗng** vì anchor-tag chỉ có trục `story:`.
 
 ---
@@ -31,7 +31,7 @@
 
 ---
 
-<!-- tier:2 role:ba,cto,designer,dev-be,mobile,qa story:US-000 -->
+<!-- tier:2 role:ba,cto,designer,dev-be,client,qa story:US-000 -->
 ### US-000: (ví dụ mẫu — xoá khi có story thật)
 
 **Mô tả:** <như một người dùng, tôi muốn...>

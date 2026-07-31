@@ -5,7 +5,7 @@
 
 ## 3 quy ước then chốt của tầng điều phối
 
-**1. `node_id` = node của NGƯỜI GỬI** (mọi `type`). Đây là địa chỉ để Orchestrator biết message đóng/chặn node nào. `task_id` KHÔNG đủ để routing vì 1 story sinh nhiều node (`dev-be`, `mobile-screen`, `qa`...).
+**1. `node_id` = node của NGƯỜI GỬI** (mọi `type`). Đây là địa chỉ để Orchestrator biết message đóng/chặn node nào. `task_id` KHÔNG đủ để routing vì 1 story sinh nhiều node (`dev-be`, `client-screen`, `qa`...).
 
 **2. `processed_at` = cờ consume.** Agent luôn ghi `null`. **Chỉ Orchestrator** điền timestamp, sau khi đã cập nhật `wbs.json` + `event-log.jsonl`. Vòng lặp lọc theo field này, KHÔNG theo `status`.
 
@@ -15,7 +15,7 @@
 
 ---
 
-## 1. Handoff (mặc định, 1 chiều) — `designer` (phase `designer-screen`) báo xong cho `mobile`
+## 1. Handoff (mặc định, 1 chiều) — `designer` (phase `designer-screen`) báo xong cho `client`
 
 `kernel/mailbox/msg-US014-designer-screen-1.md`:
 
@@ -26,7 +26,7 @@ type: handoff
 node_id: US014-designer-screen
 task_id: US-014
 from: designer
-to: mobile
+to: client
 status: pending
 processed_at: null
 schema_version: 1
@@ -50,28 +50,28 @@ lỗi OTP sai, lỗi OTP hết hạn). Không có gì mơ hồ cần hỏi lại
 1. Gate 0: frontmatter hợp lệ + `to` có trong dag.json.units["designer-screen"].feeds?
 2. wbs.json: node US014-designer-screen -> status: done, finished_at: <now>
 3. Thêm message_id vào node.message_refs           (dấu vết: message nào đã chạm node này)
-4. RECOMPUTE_READY(): US014-mobile-screen có depends_on
-   [US014-designer-screen, PROJ-mobile-shell] — nếu CẢ 2 done -> chuyển ready
+4. RECOMPUTE_READY(): US014-client-screen có depends_on
+   [US014-designer-screen, PROJ-client-shell] — nếu CẢ 2 done -> chuyển ready
 5. Append 1 dòng vào event-log.jsonl
 6. Set processed_at: <now>                          <-- thiếu bước này = loop vô hạn
 ```
 
-`mobile` chỉ cần đọc "Tóm tắt" + "Bàn giao" là đủ làm việc — chỉ mở con trỏ khi thực sự cần layout chi tiết.
+`client` chỉ cần đọc "Tóm tắt" + "Bàn giao" là đủ làm việc — chỉ mở con trỏ khi thực sự cần layout chi tiết.
 
 ---
 
-## 2. Request (Sync Session) — `mobile` hỏi `cto`
+## 2. Request (Sync Session) — `client` hỏi `cto`
 
-`kernel/mailbox/msg-US014-mobile-screen-1.md`:
+`kernel/mailbox/msg-US014-client-screen-1.md`:
 
 ```markdown
 ---
-message_id: msg-US014-mobile-screen-1
+message_id: msg-US014-client-screen-1
 type: request
-node_id: US014-mobile-screen
+node_id: US014-client-screen
 task_id: US-014
 request_id: sync-US014-01
-from: mobile
+from: client
 to: cto
 status: pending
 processed_at: null
@@ -85,7 +85,7 @@ schema_version: 1
 thì server trả `410 Gone` hay `400 Bad Request`? Cần biết để hiển thị đúng message lỗi.
 ```
 
-Khác handoff ở điểm quan trọng: node `US014-mobile-screen` **vẫn giữ `status: running`** — nó đang bị block chờ trả lời, KHÔNG chuyển `done`. Orchestrator chỉ set `processed_at` (đã route sang `cto`), không đổi trạng thái node.
+Khác handoff ở điểm quan trọng: node `US014-client-screen` **vẫn giữ `status: running`** — nó đang bị block chờ trả lời, KHÔNG chuyển `done`. Orchestrator chỉ set `processed_at` (đã route sang `cto`), không đổi trạng thái node.
 
 ## 3. Response — `cto` trả lời
 
@@ -99,7 +99,7 @@ node_id: INTAKE001-cto
 task_id: US-014
 request_id: sync-US014-01
 from: cto
-to: mobile
+to: client
 status: answered
 processed_at: null
 turn: 2
@@ -126,20 +126,20 @@ Nói cách khác: với `handoff` thì `node_id` là *node vừa hoàn thành*; 
 
 ## 4. Handoff có bằng chứng dài — `artifact_refs`, KHÔNG dán log vào body
 
-`kernel/mailbox/msg-US014-mobile-screen-2.md`:
+`kernel/mailbox/msg-US014-client-screen-2.md`:
 
 ```markdown
 ---
-message_id: msg-US014-mobile-screen-2
+message_id: msg-US014-client-screen-2
 type: handoff
-node_id: US014-mobile-screen
+node_id: US014-client-screen
 task_id: US-014
-from: mobile
+from: client
 to: qa
 status: pending
 processed_at: null
 gate_ref: gate3
-artifact_refs: [logs/US014-mobile-screen/flutter-analyze.txt, logs/US014-mobile-screen/flutter-test.txt]
+artifact_refs: [logs/US014-client-screen/flutter-analyze.txt, logs/US014-client-screen/flutter-test.txt]
 schema_version: 1
 ---
 
@@ -150,7 +150,7 @@ US-014 (đăng nhập OTP) đã xong 4 screen. Test với mock server dựng t�
 ## Bàn giao
 - PR: #142, CI xanh
 - Commit: `Refs: US-014`
-- Permission đã dùng: `camera` (đã khai trong `shared/capabilities/native.json`)
+- Permission đã dùng: `camera` (đã khai trong `shared/capabilities/client.json`)
 
 ## Bằng chứng (đoạn quyết định — file đầy đủ ở artifact_refs)
 flutter analyze: No issues found. (2.1s)

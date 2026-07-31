@@ -49,7 +49,7 @@ PRD từ brief thô gần như luôn thiếu `pending`, `auth_locked`, `session_
 ## 4. Quy ước platform (chỉ chỗ iOS và Android KHÁC nhau)
 
 - **Sinh trắc học:** iOS Face ID / Touch ID có dialog hệ thống với văn bản do app cấp; Android BiometricPrompt khác về hình dạng và cho phép fallback thiết bị. Layout phải chừa chỗ cho state "đang chờ dialog hệ thống", không tự vẽ dialog sinh trắc.
-- **Ảnh chụp màn hình:** iOS không chặn được, Android chặn được bằng `FLAG_SECURE`. Nếu PRD yêu cầu chặn chụp màn hình ở màn số dư thì hành vi 2 nền tảng **khác nhau** — nêu rõ, đừng để `mobile-screen` tự quyết.
+- **Ảnh chụp màn hình:** iOS không chặn được, Android chặn được bằng `FLAG_SECURE`. Nếu PRD yêu cầu chặn chụp màn hình ở màn số dư thì hành vi 2 nền tảng **khác nhau** — nêu rõ, đừng để `client-screen` tự quyết.
 - **Autofill OTP:** iOS tự điền OTP từ SMS ở ô `oneTimeCode`; Android qua SMS Retriever API. Ô OTP phải là 1 field hỗ trợ autofill, **không** phải 6 ô rời rạc (6 ô rời làm autofill hỏng ở cả 2 nền tảng).
 - **Bàn phím số:** iOS `decimalPad` không có nút xoá riêng như một số bàn phím Android — nút xoá phải nằm trong UI của app nếu thiết kế bàn phím tự tạo.
 

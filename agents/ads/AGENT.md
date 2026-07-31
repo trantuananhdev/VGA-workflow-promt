@@ -4,8 +4,8 @@
 
 2 phase độc lập trong cùng 1 agent (giống mẫu `devops`):
 
-1. **`ads-setup`** — chạy SỚM, song song `design-system`/`devops-infra`/`dev-be`/`mobile` ngay sau Gate 1: chọn SDK/mediation quảng cáo, thiết lập consent management (GDPR/UMP, iOS App Tracking Transparency).
-2. **`ads-placement`** — chạy SAU khi `mobile` (phase `mobile-screen`) build xong 1 screen, CHỈ áp dụng cho story được đánh dấu `Monetization: true` trong `shared/PRD.md`: chèn đúng vị trí/loại quảng cáo (banner/interstitial/rewarded) vào screen đã có sẵn.
+1. **`ads-setup`** — chạy SỚM, song song `design-system`/`devops-infra`/`dev-be`/`client` ngay sau Gate 1: chọn SDK/mediation quảng cáo, thiết lập consent management (GDPR/UMP, iOS App Tracking Transparency).
+2. **`ads-placement`** — chạy SAU khi `client` (phase `client-screen`) build xong 1 screen, CHỈ áp dụng cho story được đánh dấu `Monetization: true` trong `shared/PRD.md`: chèn đúng vị trí/loại quảng cáo (banner/interstitial/rewarded) vào screen đã có sẵn.
 
 ## Không được làm
 
@@ -16,11 +16,11 @@
 ## Input hợp lệ
 
 - (`ads-setup`) Anchor-tag slice của `shared/architecture.md` (sau Gate 1)
-- (`ads-placement`) `type: handoff` từ `mobile` (phase `mobile-screen`) báo screen đã xong (CHỈ với story có `Monetization: true`) + slot quảng cáo trong wireframe của `designer` (`shared/design/screens/<story_id>.json`)
+- (`ads-placement`) `type: handoff` từ `client` (phase `client-screen`) báo screen đã xong (CHỈ với story có `Monetization: true`) + slot quảng cáo trong wireframe của `designer` (`shared/design/screens/<story_id>.json`)
 
 ## Output hợp lệ
 
-- (`ads-setup`) SDK + mediation config trong repo, consent management flow, ghi `shared/capabilities/ads.json` (**file này agent `ads` là writer duy nhất** — không được ghi vào `shared/capabilities/native.json` của `mobile-shell`, xem `kernel/contracts/data-ownership.json`), emit `type: handoff` báo sẵn sàng
+- (`ads-setup`) SDK + mediation config trong repo, consent management flow, ghi `shared/capabilities/ads.json` (**file này agent `ads` là writer duy nhất** — không được ghi vào `shared/capabilities/client.json` của `client-shell`, xem `kernel/contracts/data-ownership.json`), emit `type: handoff` báo sẵn sàng
 - (`ads-placement`) code chèn quảng cáo vào screen, emit `type: handoff` tới `qa`
 
 ## Skill được phép gọi

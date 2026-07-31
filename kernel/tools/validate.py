@@ -25,14 +25,33 @@ if hasattr(sys.stdout, "reconfigure"):
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 FINDINGS = []          # (severity, code, message)
-STATUSES = {"blocked", "ready", "running", "done",
+STATUSES = {"blocked", "ready", "running", "waiting_sync", "done",
             "waiting_human", "awaiting_human_decision", "failed"}
 TERMINAL_STUCK = {"waiting_human", "failed"}
 # awaiting_human_decision KHONG nam trong TERMINAL_STUCK: no la buoc BINH THUONG cua quy trinh
 # (nguoi chon phuong an theme o gate7), khong phai loi. Tron vao TERMINAL_STUCK se lam
 # gate.consecutive_fail va C22 mat nghia. Xem kernel/gates/gate7-design-system-lock.md.
 AWAITING_DECISION = "awaiting_human_decision"
+WAITING_SYNC = "waiting_sync"
+
+# Trang thai KHONG giu slot concurrency: node dang cho ai khac (nguoi hoac agent) chu khong
+# dang lam gi. Capacity = DEM node running (ORCHESTRATOR.md §2) nen 2 trang thai nay tu dong
+# nha slot; hang so nay ton tai de C18 va cac kiem tra khac khong tu suy dien lai sai.
+NON_SLOT_STATUSES = {WAITING_SYNC, AWAITING_DECISION}
+
+# Pseudo-unit: xuat hien trong dag.json nhung KHONG BAO GIO sinh node.
+#   gate1   = moc BA+CTO signoff (o ca feeds va depends_on)
+#   __end__ = DIEM KET, chi o feeds — node la bao xong ve kernel, khong co agent xuoi dong.
+# Xem dag.json -> _pseudo_units / _end_note. Truoc day chi co "gate1" va no bi hard-code rai rac.
+PSEUDO_UNITS = {"gate1", "__end__"}
+END_UNIT = "__end__"
 MSG_TYPES = {"handoff", "request", "response"}
+MSG_STATUSES = {"pending", "answered", "rejected", "resolved"}
+
+# Dat boi main(). Mot so kiem tra la DIEU KIEN SAN SANG CHAY (vd kenh escalate da noi that chua)
+# chu khong phai lech trang thai — chung chan o --selftest (runbook dau phien) va chi canh bao o
+# lan chay cuoi moi vong lap, de khong bien tieng on thanh thoi quen bo qua ERROR.
+SELFTEST = False
 
 
 def add(sev, code, msg):
@@ -70,17 +89,39 @@ def strip_meta(d):
     return {k: v for k, v in d.items() if not k.startswith("_")}
 
 
+def read_text_safe(path):
+    """Doc text, KHONG chet vi encoding. Tra (text, loi_hay_None).
+
+    VI SAO: check_crossrefs doc MOI file .md/.json trong repo voi encoding='utf-8' cung va
+    khong bao try. Mot file latin-1 lot vao (rat de xay ra o cay vendored) lam ca validate.py
+    chet bang UnicodeDecodeError va KHONG IN FINDING NAO — tuc Gate 0 va Gate 2 bien mat hoan
+    toan, im lang. errors='replace' co y: doc gan dung con hon khong doc duoc gi.
+    """
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            return f.read(), None
+    except Exception as e:
+        return None, str(e)
+
+
+def is_sync_node(n):
+    """Node tam sinh o §7d de 1 role co dia chi ma tra loi Sync Session.
+
+    KHONG thuoc unit nao trong dag.json -> moi luat DAG (C4/C9/C10/C15/C35) bo qua no.
+    Cung khong co gate nen khong co bo dem fail -> C42/C43 bo qua.
+    """
+    return (n or {}).get("kind") == "sync"
+
+
 # ─────────────────────────── YAML frontmatter (khong dung thu vien) ───────────────────────────
 def parse_frontmatter(path):
     """Tra (dict, error). Chi ho tro key: value phang — dung du cho message.schema.json.
 
     dict tra ve co them 2 key noi bo: __body_lines__, __body_chars__ (de kiem gioi han body).
     """
-    try:
-        with open(path, encoding="utf-8") as f:
-            text = f.read()
-    except Exception as e:
-        return None, f"khong doc duoc: {e}"
+    text, rerr = read_text_safe(path)
+    if rerr:
+        return None, f"khong doc duoc: {rerr}"
     if not text.startswith("---"):
         return None, "khong co YAML frontmatter (phai bat dau bang '---')"
     end = text.find("\n---", 3)
@@ -153,6 +194,29 @@ def check_manifests(schema, escalation):
         if folder != "_template" and channels and notify not in channels:
             err("A8", f"manifest {folder}: escalation.notify={notify!r} khong co trong "
                        f"kernel/config/escalation.json channels {sorted(channels)}")
+
+    # A9: kenh escalate phai tro vao dich THAT.
+    # A8 chi kiem KEY ton tai, khong kiem target -> ca 7 kenh con "#TODO-..." va moi escalate()
+    # gui vao mot kenh khong ton tai. Trong khi do C20 van ghi escalated_at chung nhan "da bao
+    # nguoi". Day dung la failure mode ma C20 sinh ra de chan, tut xuong mot lop: he thong tin
+    # rang nguoi da duoc goi, con nguoi thi khong he biet.
+    # Muc do: ERROR khi --selftest, WARN khi chay thuong. Ly do o vai tro 2 che do (runbook
+    # ORCHESTRATOR.md §10): --selftest tra loi "ha tang co san sang chay khong" -> kenh escalate
+    # chua noi la CHUA san sang, phai chan. Con validate.py chay cuoi MOI vong lap tra loi
+    # "trang thai hien tai co nhat quan khong" -> chan moi vong vi 1 viec cau hinh chi tao tieng
+    # on, va tieng on lam nguoi ta bo qua ca nhung ERROR that.
+    bad = []
+    for key, ch in sorted(strip_meta((escalation or {}).get("channels", {})).items()):
+        target = (ch or {}).get("target") if isinstance(ch, dict) else None
+        if not target or "TODO" in str(target) or str(target).startswith("<"):
+            bad.append(f"{key}={target!r}")
+    if bad:
+        msg = (f"kernel/config/escalation.json: {len(bad)} kenh chua dien dich that ({', '.join(bad)}) "
+               f"-> escalate() se gui vao kenh KHONG TON TAI va khong ai duoc thong bao, trong khi "
+               f"wbs.json van ghi gate.escalated_at nhu the da bao. Day dung la failure mode ma C20 "
+               f"sinh ra de chan, tut xuong mot lop. Dien kenh Slack/email that truoc khi chay "
+               f"project that.")
+        (err if SELFTEST else warn)("A9", msg)
     return mans
 
 
@@ -161,7 +225,7 @@ def unit_deps(units, u, include_conditional=True):
     d = list(units[u].get("depends_on", []))
     if include_conditional:
         d += [c["unit"] for c in units[u].get("conditional_depends_on", [])]
-    return [x for x in d if x != "gate1"]
+    return [x for x in d if x not in PSEUDO_UNITS]
 
 
 def check_dag(dag, mans):
@@ -185,8 +249,8 @@ def check_dag(dag, mans):
             err("B4", f"dag unit {u}: scope={d.get('scope')!r} khong hop le")
 
         for f in d.get("feeds", []):
-            if f == "gate1":
-                continue
+            if f in PSEUDO_UNITS:
+                continue          # gate1 = moc, __end__ = diem ket; ca 2 khong sinh node
             if f not in units:
                 err("B5", f"dag {u}.feeds -> {f!r} khong phai unit")
             elif u not in unit_deps(units, f):
@@ -194,6 +258,18 @@ def check_dag(dag, mans):
         for f in d.get("runtime_feeds", []):
             if f not in units:
                 err("B7", f"dag {u}.runtime_feeds -> {f!r} khong phai unit")
+
+        # B18: reject_feeds = do thi thu BA (duong TRA VE khi gate cua unit nay fail).
+        # KHONG doi xung va di NGUOC chieu DAG nen khong ap B6/B9. Nhung phai la unit THAT:
+        # pseudo-unit vo nghia o day (tra ve cho "diem ket" thi tra cho ai?).
+        for f in d.get("reject_feeds", []):
+            if f in PSEUDO_UNITS:
+                err("B18", f"dag {u}.reject_feeds -> {f!r} la pseudo-unit, khong the nhan "
+                            f"duong tra ve (xem dag.json _reject_note)")
+            elif f not in units:
+                err("B18", f"dag {u}.reject_feeds -> {f!r} khong phai unit")
+            elif f == u:
+                err("B18", f"dag {u}.reject_feeds tro vao chinh no -> vong lap tra ve")
         for x in unit_deps(units, u):
             if x not in units:
                 err("B8", f"dag {u}.depends_on -> {x!r} khong phai unit")
@@ -233,17 +309,113 @@ def check_dag(dag, mans):
             warn("B14", f"agent {a} khong co entry trong sync_allowed (khong mo Sync Session duoc)")
         if not any(d.get("role") == a for d in units.values()):
             err("B15", f"agent {a} khong co unit nao trong dag.json -> khong bao gio duoc dispatch")
+
+    # B16: only_if phai thuoc VAN PHAM DONG. Fail-closed co y: bieu thuc la nghia la
+    # generate_wbs (LLM) va validator (Python) se hieu khac nhau ve viec unit do co sinh node
+    # hay khong — va khong ai bao. Xem dag.json -> _only_if_grammar.
+    for u, d in units.items():
+        exprs = d.get("only_if")
+        if exprs is None:
+            exprs = []
+        if isinstance(exprs, str):
+            err("B16", f"dag unit {u}: only_if phai la MANG bieu thuc (ngu nghia AND), khong phai "
+                       f"chuoi don {exprs!r} — xem dag.json _only_if_grammar")
+            exprs = [exprs]
+        for e in exprs:
+            if e not in ONLY_IF_GRAMMAR:
+                err("B16", f"dag unit {u}: only_if chua bieu thuc {e!r} KHONG thuoc van pham dong "
+                           f"{sorted(ONLY_IF_GRAMMAR)} -> validator khong danh gia duoc, va "
+                           f"generate_wbs se tu doan. Them bieu thuc moi thi phai cai dat trong "
+                           f"eval_only_if() cung luc.")
+        for c in d.get("conditional_depends_on", []):
+            ce = c.get("only_if")
+            if ce is None:
+                continue
+            for e in ([ce] if isinstance(ce, str) else ce):
+                if e not in ONLY_IF_GRAMMAR:
+                    err("B16", f"dag unit {u}: conditional_depends_on[{c.get('unit')!r}].only_if "
+                               f"chua bieu thuc {e!r} khong thuoc van pham dong")
     return units
 
 
+# ─────────── Van pham dong cua only_if (dag.json -> _only_if_grammar) ───────────
+# VI SAO O DAY: only_if quyet dinh 1 unit co sinh node hay khong. Truoc day kernel MAC DINH
+# moi project la mobile app (unit mobile-shell/mobile-screen luon co node), nen only_if chi
+# phuc vu dung 1 viec nho (ads-placement theo tung story). Tu khi loai san pham do de bai
+# quyet dinh (cto ghi tech-stack.json -> delivery_targets), only_if quyet dinh HINH DANG cua
+# ca WBS: thieu/thua 1 unit khong lam file invalid ve cu phap, no chi tao ra node cho viec
+# khong ton tai (nam ready mai) hoac bo im lang ca 1 nhanh. Vi vay phai danh gia bang may.
+CLIENT_TARGETS = {"mobile_native", "web_app"}
+BACKEND_TARGET = "backend_service"
+VALID_TARGETS = CLIENT_TARGETS | {BACKEND_TARGET}
+ONLY_IF_GRAMMAR = {
+    "story.Monetization == true",
+    "tech_stack.has_client == true",
+    "tech_stack.has_backend == true",
+}
+
+
+def tech_ctx(tech):
+    """Suy ctx tu shared/contracts/tech-stack.json. Thieu file/rong -> None (chua chot stack).
+
+    None KHAC False: chua chot thi khong ket luan duoc gi ve unit nao, nen cac kiem tra
+    phu thuoc ctx phai BO QUA thay vi bao loi hang loat (repo template chua co project that).
+    """
+    if not isinstance(tech, dict):
+        return None
+    targets = tech.get("delivery_targets")
+    if not isinstance(targets, list) or not targets:
+        return None
+    return {
+        "delivery_targets": targets,
+        "has_client": bool(set(targets) & CLIENT_TARGETS),
+        "has_backend": BACKEND_TARGET in targets,
+    }
+
+
+def eval_only_if(exprs, ctx, monetization=None):
+    """Danh gia mang bieu thuc only_if (AND). Tra True/False/None.
+
+    None = KHONG KET LUAN DUOC (thieu ctx hoac thieu thong tin Monetization cua story) ->
+    ben goi phai bo qua kiem tra do, khong duoc coi la False. Gop 2 nghia nay lai se bien
+    'chua biet' thanh 'khong duoc phep', va moi repo chua chot stack se fail hang loat.
+    """
+    if isinstance(exprs, str):
+        exprs = [exprs]
+    if not exprs:
+        return True
+    result = True
+    for e in exprs:
+        if e == "tech_stack.has_client == true":
+            if ctx is None:
+                return None
+            result = result and ctx["has_client"]
+        elif e == "tech_stack.has_backend == true":
+            if ctx is None:
+                return None
+            result = result and ctx["has_backend"]
+        elif e == "story.Monetization == true":
+            if monetization is None:
+                return None
+            result = result and bool(monetization)
+        else:
+            return None  # bieu thuc la -> B16 da bao, khong tu suy dien
+    return result
+
+
 # ─────────────────────────── Quy tac giao tap (dung chung wbs + selftest) ───────────────────────────
-def expected_deps(units, unit, track_units, monetization):
-    """depends_on ky vong = (depends_on + conditional thoa) \\ {gate1} GIAO {unit co node trong track}."""
-    raw = [x for x in units[unit].get("depends_on", []) if x != "gate1"]
+def expected_deps(units, unit, track_units, monetization, ctx=None):
+    """depends_on ky vong = (depends_on + conditional thoa) \\ {gate1} GIAO {unit co node trong track}.
+
+    Phep GIAO voi track_units la thu lam ca 3 track (va moi hinh dang delivery_targets) tu dung
+    ma khong can logic rieng: unit khong sinh node thi tu bi loai khoi depends_on.
+    """
+    raw = [x for x in units[unit].get("depends_on", []) if x not in PSEUDO_UNITS]
     for c in units[unit].get("conditional_depends_on", []):
-        if c.get("only_if") == "story.Monetization == true" and monetization:
+        cond = c.get("only_if")
+        if cond is None:
             raw.append(c["unit"])
-        elif c.get("only_if") is None:
+        elif eval_only_if(cond, ctx, monetization) is True:
             raw.append(c["unit"])
     return sorted(set(raw) & set(track_units))
 
@@ -252,14 +424,14 @@ def downstream_closure(units, start):
     seen, stack = {start}, [start]
     while stack:
         for f in units[stack.pop()].get("feeds", []):
-            if f != "gate1" and f in units and f not in seen:
+            if f not in PSEUDO_UNITS and f in units and f not in seen:
                 seen.add(f)
                 stack.append(f)
     return sorted(seen)
 
 
 # ─────────────────────────── C. wbs.json ───────────────────────────
-def check_wbs(wbs, units, mans, profile, limits=None):
+def check_wbs(wbs, units, mans, profile, limits=None, tech=None):
     if wbs is None or not units:
         return {}
     nodes_list = wbs.get("nodes", [])
@@ -289,17 +461,53 @@ def check_wbs(wbs, units, mans, profile, limits=None):
 
     active_caps = set((profile or {}).get("active_capability_agents", []))
 
+    # ctx delivery target: None = chua chot stack -> BO QUA C35/C36 (repo template, chua co
+    # project that). None khac False co y: 'chua biet' khong duoc bien thanh 'khong duoc phep'.
+    tctx = tech_ctx(tech)
+    if tctx is None and any(n.get("track") == "build" for n in nodes.values()):
+        warn("C34b", "wbs.json co track 'build' nhung shared/contracts/tech-stack.json chua co "
+                     "delivery_targets hop le -> KHONG kiem duoc unit nao dang le phai co node "
+                     "(C35/C36 bi bo qua). Chay agents/cto/skills/decide_tech_stack/ truoc.")
+
     for nid, n in nodes.items():
         role, phase = n.get("role"), n.get("phase")
         unit = by_unit.get((role, phase))
-        if unit is None:
+        is_sync = n.get("kind") == "sync"
+        if is_sync:
+            unit = None       # sync node KHONG thuoc unit nao -> moi luat DAG khong ap dung
+        elif unit is None:
             err("C4", f"node {nid}: (role={role!r}, phase={phase!r}) khong khop unit nao trong dag.json")
+        if n.get("kind") not in (None, "unit", "sync"):
+            err("C46", f"node {nid}: kind={n.get('kind')!r} khong hop le (chi 'unit' | 'sync' | thieu)")
         if role not in mans:
             err("C5", f"node {nid}: role {role!r} khong co agents/{role}/manifest.json")
         if n.get("status") not in STATUSES:
             err("C6", f"node {nid}: status={n.get('status')!r} khong thuoc {sorted(STATUSES)}")
         if n.get("track") not in ("intake", "build", "runtime"):
             err("C7", f"node {nid}: track={n.get('track')!r} khong hop le")
+
+        # C40: SYNC NODE — node tam de 1 role co dia chi ma tra loi Sync Session (§7d).
+        # No khong bao gio bat dau viec moi, nen phai KHONG gate, KHONG dependency.
+        if is_sync:
+            sfn = n.get("sync_for_node")
+            if not sfn:
+                err("C40", f"node {nid}: kind=sync nhung thieu sync_for_node -> khong biet tra loi "
+                            f"cho node nao, response se khong go duoc node dang waiting_sync")
+            elif sfn not in nodes:
+                err("C40", f"node {nid}: sync_for_node={sfn!r} khong ton tai trong wbs.json")
+            elif nodes[sfn].get("role") == role:
+                err("C40", f"node {nid}: sync_for_node={sfn!r} cung role {role!r} -> agent tu hoi "
+                            f"chinh minh, khong phai Sync Session")
+            if not n.get("sync_request_id"):
+                err("C40", f"node {nid}: kind=sync nhung thieu sync_request_id -> khong ghep duoc "
+                            f"voi message request goc")
+            if (n.get("gate") or {}).get("name") is not None:
+                err("C40", f"node {nid}: kind=sync nhung co gate.name="
+                            f"{(n.get('gate') or {}).get('name')!r} -> sync node khong ban giao gi "
+                            f"nen khong co gate de qua")
+            if n.get("depends_on"):
+                err("C40", f"node {nid}: kind=sync nhung co depends_on={n.get('depends_on')} "
+                            f"-> no phai ready ngay, khong cho ai")
 
         # dependency ton tai
         for dep in n.get("depends_on", []):
@@ -343,10 +551,10 @@ def check_wbs(wbs, units, mans, profile, limits=None):
             # PHAM VI "cung track" — KHONG phai cung track_id.
             # Track `build` co NHIEU track_id cung luc: PROJ (scope project), REL (scope release),
             # US014/US015... (scope story) — xem wbs.json._tracks. Node scope=story hoan toan
-            # duoc phep depends_on node scope=project (US014-mobile-screen -> PROJ-mobile-shell,
+            # duoc phep depends_on node scope=project (US014-client-screen -> PROJ-client-shell,
             # US014-designer-screen -> PROJ-design-system). Neu gom peer theo track_id thi
             # PROJ-* bi coi la "khong co node trong track" -> giao tap loai no ra -> C10 bao sai
-            # tren MOI node mobile-screen/designer-screen cua moi project thuc.
+            # tren MOI node client-screen/designer-screen cua moi project thuc.
             # Rieng intake/runtime: moi track_id la 1 the hien DOC LAP (BUG042 vs BUG043 co the
             # co entry unit khac nhau) nen van phai gom theo track_id.
             if n.get("track") == "build":
@@ -359,7 +567,7 @@ def check_wbs(wbs, units, mans, profile, limits=None):
                 if tu:
                     track_units.add(tu)
             monet = any(c["unit"] in track_units for c in units[unit].get("conditional_depends_on", []))
-            exp_units = expected_deps(units, unit, track_units, monet)
+            exp_units = expected_deps(units, unit, track_units, monet, tctx)
             got_units = sorted({by_unit.get((nodes[d].get("role"), nodes[d].get("phase")))
                                 for d in n.get("depends_on", []) if d in nodes} - {None})
             if exp_units != got_units:
@@ -392,6 +600,44 @@ def check_wbs(wbs, units, mans, profile, limits=None):
         if n.get("track") == "build" and n.get("size") and not n.get("size_reasoning"):
             err("C16", f"node {nid}: co size={n.get('size')!r} nhung thieu size_reasoning")
 
+        # C35: node ton tai cho unit ma only_if (phan tech_stack.*) KHONG thoa.
+        # Day la lop loi MOI, sinh ra tu luc kernel het mac dinh mobile: node cho viec khong
+        # ton tai (vd project web sinh PROJ-client-shell theo kieu native) se nam ready mai ma
+        # khong ai lam duoc, va KHONG vi pham bat ky rang buoc cu phap nao.
+        if unit and tctx is not None:
+            tech_exprs = [e for e in (units[unit].get("only_if") or [])
+                          if e.startswith("tech_stack.")]
+            if tech_exprs and eval_only_if(tech_exprs, tctx) is False:
+                err("C35", f"node {nid}: unit {unit!r} co only_if {tech_exprs} KHONG thoa voi "
+                            f"delivery_targets={tctx['delivery_targets']} (has_client="
+                            f"{tctx['has_client']}, has_backend={tctx['has_backend']}) -> node cho "
+                            f"phan viec project nay KHONG CO. Sinh lai track build "
+                            f"(skills/generate_wbs/SKILL.md buoc 0b), hoac sua delivery_targets "
+                            f"neu chinh no moi la cai sai (Gate 1 dieu 10).")
+
+    # C36: chieu NGUOC lai C35 — unit dang BAT (only_if thoa) ma khong co node nao trong
+    # track build. Day moi la lop loi im lang hon: thieu ca 1 nhanh thi khong co gi bao,
+    # va gate xuoi dong van pass (vd project co backend nhung thieu han nhanh dev-be ->
+    # qa chi cho client-screen roi bao integration-ready khi chua ai kiem backend).
+    if tctx is not None and any(n.get("track") == "build" for n in nodes.values()):
+        build_units = {by_unit.get((n.get("role"), n.get("phase")))
+                       for n in nodes.values() if n.get("track") == "build"}
+        for u, d in units.items():
+            if u in ("po", "ba", "cto") or u in build_units:
+                continue
+            if (mans.get(d.get("role")) or {}).get("core") is not True:
+                continue  # capability-agent: da co C14/E5/E6 lo phan bat/tat
+            exprs = d.get("only_if") or []
+            tech_exprs = [e for e in exprs if e.startswith("tech_stack.")]
+            story_exprs = [e for e in exprs if not e.startswith("tech_stack.")]
+            if story_exprs:
+                continue  # phu thuoc tung story (Monetization) -> khong ket luan o muc track
+            if tech_exprs and eval_only_if(tech_exprs, tctx) is not True:
+                continue  # dung ra la khong co node -> C35 lo chieu con lai
+            err("C36", f"unit {u!r} DUOC BAT theo delivery_targets={tctx['delivery_targets']} "
+                       f"nhung KHONG co node nao trong track 'build' -> ca nhanh viec nay bi bo "
+                       f"im lang, gate xuoi dong van pass ma khong ai kiem. Sinh lai track build.")
+
     # chu trinh giua node
     color = {}
 
@@ -419,13 +665,22 @@ def check_wbs(wbs, units, mans, profile, limits=None):
         if cap and cnt > cap:
             err("C18", f"role {role}: {cnt} node dang running > concurrency={cap} trong manifest")
 
-    # moi track phai co duong chay
+    # moi track phai co duong chay.
+    # PHAM VI GOM giong C10, khong phai track_id: track `build` co NHIEU track_id cung luc
+    # (PROJ / REL / US001 / US002...) va node cua 1 story HOAN TOAN BINH THUONG khi toan bo
+    # blocked luc moi sinh — chung cho PROJ-design-system/PROJ-client-shell. Gom theo track_id
+    # o day se bao loi oan tren MOI story cua MOI project that (loi nay lo ra khi chay thu WBS
+    # web_app dau tien; truoc do khong ai thay vi wbs.json template chua co node nao).
+    # Dieu kien dung la: CA track build phai co it nhat 1 duong chay.
     tracks = defaultdict(list)
     for n in nodes.values():
-        tracks[n.get("track_id")].append(n)
+        key = "build" if n.get("track") == "build" else (n.get("track_id"),)
+        tracks[key].append(n)
     for tid, ns in tracks.items():
         if all(x.get("status") == "blocked" for x in ns):
-            err("C19", f"track {tid}: TOAN BO node deu blocked -> track nay khong bao gio khoi dong")
+            label = "build" if tid == "build" else tid[0]
+            err("C19", f"track {label}: TOAN BO node deu blocked -> track nay khong bao gio "
+                       f"khoi dong (khong co node nao depends_on rong)")
 
     # C20-C22: trang thai cho nguoi can thiep (waiting_human / failed)
     for nid, n in nodes.items():
@@ -446,10 +701,30 @@ def check_wbs(wbs, units, mans, profile, limits=None):
                 err("C31", f"node {nid}: status={AWAITING_DECISION} nhung gate.decision_requested_at "
                             f"rong -> khong ro nguoi co that su duoc hoi chua (doi xung voi C20). "
                             f"Xem kernel/gates/gate7-design-system-lock.md")
-            if g.get("escalated_at"):
-                err("C33", f"node {nid}: status={AWAITING_DECISION} nhung co gate.escalated_at "
-                            f"-> dang tron 2 primitive. escalated_at CHI thuoc waiting_human (loi); "
-                            f"cho nguoi quyet dinh la buoc binh thuong, dung decision_requested_at.")
+            # C33 kiem CA BA field mang nghia LOI, khong chi escalated_at. ORCHESTRATOR.md:140
+            # ghi red flag la "node awaiting_human_decision ma consecutive_fail bi tang — validator
+            # C33", nhung truoc day C33 chi tu choi escalated_at -> dung ca red flag duoc neu ten
+            # cung khong ai bat. Thu nghiem cu: awaiting_human_decision + consecutive_fail:5 = 0 finding.
+            for field, why in (("escalated_at", "escalated_at CHI thuoc waiting_human"),
+                               ("consecutive_fail", "cho nguoi quyet dinh KHONG phai fail cua agent"),
+                               ("last_error", "khong co 'loi' nao o day de ghi")):
+                if g.get(field):
+                    err("C33", f"node {nid}: status={AWAITING_DECISION} nhung co gate.{field}="
+                                f"{g.get(field)!r} -> dang tron 2 primitive ({why}). Cho nguoi quyet "
+                                f"dinh la buoc BINH THUONG, chi dung decision_requested_at. "
+                                f"Neu nguoi TU CHOI moi phuong an thi do moi la fail that — luc do "
+                                f"status phai la ready/waiting_human, khong con la {AWAITING_DECISION}.")
+            # C44: trang thai nay bi KHOA vao gate7. ORCHESTRATOR.md:131 noi day la gate DUY NHAT
+            # co ket qua thu ba, nhung truoc day khong gi chan gate khac do node vao day — ma
+            # duong ra duy nhat (resume.py --decision) thi hard-code ghi shared/design/theme-choice.json,
+            # nen gate khac dung trang thai nay se ghi lua chon vao SAI FILE.
+            if g.get("name") != "gate7":
+                err("C44", f"node {nid}: status={AWAITING_DECISION} nhung gate={g.get('name')!r} "
+                            f"khong phai gate7. Hien gate7 la gate DUY NHAT co ket qua thu ba "
+                            f"(ORCHESTRATOR.md §6), va duong ra `resume.py --decision` ghi thang vao "
+                            f"shared/design/theme-choice.json -> gate khac dung trang thai nay se ghi "
+                            f"quyet dinh vao sai file. Muon them gate can nguoi quyet dinh thi phai "
+                            f"tong quat hoa resume.py truoc.")
             downstream = [m for m in nodes.values() if nid in m.get("depends_on", [])]
             if downstream:
                 warn("C32", f"node {nid} dang cho NGUOI QUYET DINH va chan {len(downstream)} node: "
@@ -459,6 +734,50 @@ def check_wbs(wbs, units, mans, profile, limits=None):
             warn("C34", f"node {nid}: co gate.decision_requested_at nhung status={st!r} "
                         f"(khong phai {AWAITING_DECISION}) -> field cu chua duoc xoa luc resume, "
                         f"co the lam nguoi doc wbs.json tuong node dang cho quyet dinh")
+
+        # ── C42/C43: NGUONG ESCALATE (ORCHESTRATOR.md nguyen tac bat bien #4) ──
+        # Truoc day `manifest.escalation.after_fail` KHONG duoc doc boi bat ky tool nao — grep
+        # kernel/tools/ chi ra 1 chuoi vi du trong README. Nghia la luat cung nhat cua he
+        # ("escalate khi Gate fail lien tiep > 3 lan") la luat DUY NHAT khong co ai canh.
+        # Thu nghiem cu: node consecutive_fail:99 + status:ready + after_fail:3 = 0 finding.
+        after_fail = ((mans.get(n.get("role")) or {}).get("escalation") or {}).get("after_fail")
+        cf = g.get("consecutive_fail") or 0
+        if isinstance(after_fail, int) and after_fail > 0 and not is_sync_node(n):
+            if cf >= after_fail and st not in TERMINAL_STUCK:
+                err("C42", f"node {nid}: consecutive_fail={cf} >= after_fail={after_fail} nhung "
+                            f"status={st!r} -> Orchestrator QUEN escalate. Node nay dang duoc retry "
+                            f"vo han trong im lang, dung luc dang le phai co nguoi xem "
+                            f"(nguyen tac bat bien #4). Phai chuyen waiting_human + set "
+                            f"gate.escalated_at + goi escalate() theo kenh trong "
+                            f"kernel/config/escalation.json.")
+            if st == "waiting_human" and cf < after_fail:
+                err("C43", f"node {nid}: status=waiting_human nhung consecutive_fail={cf} < "
+                            f"after_fail={after_fail} -> hoac escalate SOM (node con luot retry ma "
+                            f"da goi nguoi), hoac bo dem bi reset ma status khong duoc doi theo. "
+                            f"Ca 2 deu lam thong ke chat luong agent sai.")
+
+        # ── C41: waiting_sync — dang cho tra loi Sync Session, KHONG phai dang lam ──
+        if st == WAITING_SYNC:
+            if not g.get("sync_waiting_for"):
+                err("C41", f"node {nid}: status={WAITING_SYNC} nhung gate.sync_waiting_for rong "
+                            f"-> khong biet dang cho request_id nao, response ve cung khong ghep "
+                            f"duoc va node treo vinh vien (doi xung voi C20/C31).")
+            else:
+                answering = [m for m in nodes.values()
+                             if m.get("sync_for_node") == nid
+                             and m.get("sync_request_id") == g.get("sync_waiting_for")]
+                if not answering:
+                    err("C41", f"node {nid}: status={WAITING_SYNC} cho request_id="
+                                f"{g.get('sync_waiting_for')!r} nhung KHONG co sync node nao tra loi "
+                                f"no -> ben duoc hoi khong co dia chi de ghi message, node se treo "
+                                f"mai. Orchestrator phai goi ENSURE_SYNC_NODE (ORCHESTRATOR.md §7d).")
+                elif all(m.get("status") in ("done", "failed") for m in answering):
+                    err("C41", f"node {nid}: status={WAITING_SYNC} nhung sync node tra loi "
+                                f"({[m['node_id'] for m in answering]}) da xong -> response da ve ma "
+                                f"node hoi KHONG duoc chuyen ready (bo sot buoc go waiting_sync).")
+        elif g.get("sync_waiting_for"):
+            warn("C41b", f"node {nid}: co gate.sync_waiting_for={g.get('sync_waiting_for')!r} nhung "
+                         f"status={st!r} -> field cu chua duoc xoa luc response ve (cung mau C34)")
 
         max_resume = ((limits or {}).get("node") or {}).get("max_resume_before_review", 3)
         if st in TERMINAL_STUCK and len(g.get("resume_history") or []) >= max_resume:
@@ -515,6 +834,7 @@ def check_mailbox(msg_schema, nodes, units, dag, mans, limits):
     BODY_MAX_CHARS = lim.get("body_max_chars", 8000)
     required = set((msg_schema or {}).get("required", []))
     seen_ids = {}
+    messages = {}
     sync = strip_meta((dag or {}).get("sync_allowed", {}))
     by_unit = {(d.get("role"), d.get("phase")): u for u, d in units.items()}
 
@@ -545,6 +865,16 @@ def check_mailbox(msg_schema, nodes, units, dag, mans, limits):
         t = fm.get("type")
         if t not in MSG_TYPES:
             err("D4", f"mailbox/{name}: type={t!r} khong thuoc {sorted(MSG_TYPES)}")
+        # D4b: Gate 0 dieu 1 noi "dung enum" nhung truoc day CHI type duoc kiem — `status: foo`
+        # va `schema_version: 7` deu pass, du message.schema.json khai enum/const cho ca 2.
+        if fm.get("status") not in MSG_STATUSES:
+            err("D4b", f"mailbox/{name}: status={fm.get('status')!r} khong thuoc "
+                       f"{sorted(MSG_STATUSES)} (message.schema.json). Luu y day la trang thai "
+                       f"NGHIEP VU cua message, khac hoan toan voi co consume processed_at.")
+        sv = (msg_schema or {}).get("properties", {}).get("schema_version", {}).get("const")
+        if sv is not None and fm.get("schema_version") != sv:
+            err("D4c", f"mailbox/{name}: schema_version={fm.get('schema_version')!r} khac const={sv} "
+                       f"-> message sinh theo phien ban schema khac, cac field co the mang nghia khac")
         if t == "request" and not all(k in fm for k in ("request_id", "turn", "max_turns")):
             err("D5", f"mailbox/{name}: type=request phai co request_id + turn + max_turns")
         if t == "response" and not all(k in fm for k in ("request_id", "turn")):
@@ -562,6 +892,7 @@ def check_mailbox(msg_schema, nodes, units, dag, mans, limits):
                 err("D16", f"mailbox/{name}: message_id={mid!r} TRUNG voi {seen_ids[mid]} "
                            f"-> message_id la dinh danh duy nhat (va la ten file), trung = mat message")
             seen_ids[mid] = name
+            messages[mid] = fm
             if nid and not mid.startswith(f"msg-{nid}-"):
                 err("D17", f"mailbox/{name}: message_id={mid!r} khong theo quy uoc "
                            f"'msg-<node_id>-<n>' (phai bat dau 'msg-{nid}-'). Quy uoc nay lam "
@@ -576,28 +907,113 @@ def check_mailbox(msg_schema, nodes, units, dag, mans, limits):
             if fm.get("from") != node.get("role"):
                 err("D9", f"mailbox/{name}: from={fm.get('from')!r} khac role cua node "
                            f"({node.get('role')!r}) -> mao danh node cua agent khac")
-            unit = by_unit.get((node.get("role"), node.get("phase")))
+            unit = None if is_sync_node(node) else by_unit.get((node.get("role"), node.get("phase")))
             to = fm.get("to")
-            if t == "handoff" and unit:
-                ok = {units[f].get("role") for f in units[unit].get("feeds", []) if f in units}
-                ok |= {units[f].get("role") for f in units[unit].get("runtime_feeds", []) if f in units}
-                if to not in ok:
-                    err("D10", f"mailbox/{name}: handoff to={to!r} khong nam trong feeds/runtime_feeds "
-                                f"cua unit {unit} ({sorted(ok)})")
+            if t == "handoff" and is_sync_node(node):
+                err("D10", f"mailbox/{name}: sync node {nid} emit type=handoff -> sync node CHI duoc "
+                            f"tra loi (type=response), khong duoc bat dau viec moi (§7d)")
+            elif t == "handoff" and unit:
+                d = units[unit]
+                # Ranh gioi Build vs Runtime: dag.json _two_graphs dung 2 do thi RIENG de phan biet
+                # duong day du va duong tat. Truoc day D10 hop CA HAI vao 1 tap nen 1 handoff
+                # Build Mode di theo duong tat runtime van pass — mat dung ranh gioi do.
+                if node.get("track") == "runtime":
+                    feed_units = list(d.get("runtime_feeds", [])) + list(d.get("feeds", []))
+                else:
+                    feed_units = list(d.get("feeds", []))
+                ok = {units[f].get("role") for f in feed_units if f in units}
+                # Duong TRA VE (do thi thu ba): gate cua unit nay fail o phia xuoi dong.
+                reject_ok = {units[f].get("role") for f in d.get("reject_feeds", []) if f in units}
+                if to == END_UNIT:
+                    # Node la bao xong ve kernel. Chi hop le khi unit KHAI tuong minh __end__ —
+                    # neu khong thi agent dang dung __end__ de tron viec bao cho ben xuoi dong.
+                    if END_UNIT not in d.get("feeds", []):
+                        err("D10", f"mailbox/{name}: handoff to='__end__' nhung unit {unit} KHONG khai "
+                                    f"'__end__' trong feeds -> no co agent xuoi dong that "
+                                    f"({sorted(ok)}), khong duoc bao ket roi bo qua ho.")
+                elif to not in ok | reject_ok:
+                    err("D10", f"mailbox/{name}: handoff to={to!r} khong nam trong feeds "
+                                f"({sorted(ok)}), reject_feeds ({sorted(reject_ok)}) hay '__end__' "
+                                f"cua unit {unit}")
+                elif to in reject_ok and to not in ok and not fm.get("event"):
+                    err("D10b", f"mailbox/{name}: handoff to={to!r} di theo duong TRA VE "
+                                 f"(reject_feeds cua {unit}) nhung thieu field 'event' -> Orchestrator "
+                                 f"khong phan biet duoc voi handoff thuong, se cham diem gate SAI "
+                                 f"NGUOI (xem ORCHESTRATOR.md §7c). Dat event: bug_report.")
             if t in ("request", "response"):
-                allowed = sync.get(fm.get("from"), [])
-                if to not in allowed:
-                    err("D11", f"mailbox/{name}: sync to={to!r} khong nam trong "
-                                f"sync_allowed[{fm.get('from')}]={allowed}")
+                if is_sync_node(node):
+                    # Sync node bi bo chat hon sync_allowed thong thuong: no CHI duoc noi voi
+                    # dung ben da hoi. Neu de no dung ca sync_allowed[role] thi 1 node tam
+                    # sinh ra de tra loi designer lai co the tu di hoi cto/ads — bat dau
+                    # mot cuoc trao doi khong ai yeu cau va khong gate nao cham.
+                    asker = nodes.get(node.get("sync_for_node")) or {}
+                    allowed = [asker.get("role")] if asker.get("role") else []
+                    if to not in allowed:
+                        err("D11", f"mailbox/{name}: sync node {nid} gui to={to!r} nhung no CHI duoc "
+                                    f"tra loi ben da hoi ({allowed}) — xem ORCHESTRATOR.md §7d")
+                else:
+                    allowed = sync.get(fm.get("from"), [])
+                    if to not in allowed:
+                        err("D11", f"mailbox/{name}: sync to={to!r} khong nam trong "
+                                    f"sync_allowed[{fm.get('from')}]={allowed}")
 
-            # LECH BOOKKEEPING — day la loi runtime LLM de mac nhat
-            if fm.get("processed_at") is None and node.get("status") == "done" and t == "handoff":
-                err("D12", f"mailbox/{name}: processed_at=null nhung node {nid} da done "
-                            f"-> se bi tieu thu LAI moi vong (loop vo han)")
+            # LECH BOOKKEEPING — day la loi runtime LLM de mac nhat.
+            #
+            # D12 (luat TONG QUAT): message da nam trong node.message_refs nghia la Orchestrator
+            # DA cham no o PHA A -> bat buoc phai dong co processed_at. Truoc day D12 chi fire khi
+            # (processed_at==null AND status=="done" AND type=="handoff") nen bo lot 2 duong:
+            #   - duong RETRY: gate fail nhung con luot -> node ve "ready", khong phai "done"
+            #     -> quen processed_at o day VO HINH, dung loop vo han ma D12 sinh ra de chan.
+            #   - request/response: khong duoc kiem gi ca.
+            if fm.get("processed_at") is None and mid and mid in (node.get("message_refs") or []):
+                err("D12", f"mailbox/{name}: processed_at=null nhung message_id={mid!r} DA nam trong "
+                            f"node {nid}.message_refs -> Orchestrator da xu ly message nay ma khong "
+                            f"dong co consume. Moi vong lap se tieu thu LAI dung message nay "
+                            f"(loop vo han). Xem ORCHESTRATOR.md §7b buoc cuoi PHA A.")
+            elif fm.get("processed_at") is None and t == "handoff" \
+                    and node.get("status") in ("done", "ready", "waiting_human", AWAITING_DECISION):
+                err("D12", f"mailbox/{name}: processed_at=null nhung node {nid} da o status="
+                            f"{node.get('status')!r} -> gate ro rang da duoc cham diem "
+                            f"(done=pass, ready=fail con luot retry, waiting_human=het luot) "
+                            f"ma co consume chua dong -> se bi tieu thu LAI moi vong (loop vo han)")
+            if fm.get("processed_at") is None and t == "response" \
+                    and node.get("status") in ("done", "failed"):
+                err("D12", f"mailbox/{name}: processed_at=null nhung sync node {nid} da "
+                            f"{node.get('status')!r} -> response da duoc xu ly ma co consume chua dong")
             if fm.get("processed_at") is not None and t == "handoff" \
                     and node.get("status") not in ("done", "failed", "ready", AWAITING_DECISION):
                 warn("D13", f"mailbox/{name}: da processed_at nhung node {nid} van "
                             f"{node.get('status')!r} — kiem tra lai buoc cap nhat trang thai")
+
+    # A response inherits the max_turns set by its request; the default is a real
+    # fallback only for legacy requests that omitted it.
+    default_turns = ((limits or {}).get("message") or {}).get("sync_max_turns_default")
+    for mid, fm in messages.items():
+        if fm.get("type") != "response":
+            continue
+        req = next((m for m in messages.values()
+                    if m.get("type") == "request" and m.get("request_id") == fm.get("request_id")), None)
+        max_turns = (req or {}).get("max_turns", default_turns)
+        if isinstance(fm.get("turn"), int) and isinstance(max_turns, int) and fm["turn"] > max_turns:
+            err("D7b", f"mailbox/{seen_ids[mid]}: response turn={fm['turn']} > max_turns={max_turns} "
+                       f"cua request {fm.get('request_id')!r} -> phai escalate, khong duoc dispatch")
+
+    # Gate 1's signoff claims are evidence only when the referenced message exists
+    # and was emitted by the signer; C26 in check_wbs handles a missing ID itself.
+    for nid, node in nodes.items():
+        gate = node.get("gate") or {}
+        if gate.get("name") != "gate1":
+            continue
+        for signoff in gate.get("signoffs") or []:
+            if not isinstance(signoff, dict) or not signoff.get("message_id"):
+                continue
+            msg = messages.get(signoff["message_id"])
+            if msg is None:
+                err("C26", f"node {nid}: signoff cua {signoff.get('role')!r} tro message_id="
+                           f"{signoff['message_id']!r} KHONG ton tai trong mailbox")
+            elif msg.get("from") != signoff.get("role"):
+                err("C26", f"node {nid}: signoff cua {signoff.get('role')!r} nhung message "
+                           f"{signoff['message_id']!r} co from={msg.get('from')!r} -> khong phai ben ky")
 
 
 # ─────────────────────────── E. tham chieu cheo ───────────────────────────
@@ -605,20 +1021,26 @@ def check_crossrefs(mans, profile):
     agents = {a for a in mans if a != "_template"}
     shared_skills = set(os.listdir(rel("skills"))) if os.path.isdir(rel("skills")) else set()
 
-    for d in glob.glob(rel("**", "skills", "*"), recursive=True):
-        if os.path.isdir(d) and not os.path.exists(os.path.join(d, "SKILL.md")):
-            err("E1", f"{os.path.relpath(d, ROOT)}: thu muc skill khong co SKILL.md -> vo hinh voi moi agent")
+    # Packs may be nested (platform/<pack>/<stack-pack>).  Every directory below a
+    # skills/ root that contains a skill file is valid; every leaf directory is not.
+    for root, dirs, _ in os.walk(ROOT):
+        if os.path.basename(os.path.dirname(root)) == "skills" or "\\skills\\" in root or "/skills/" in root:
+            if root.endswith("skills"):
+                continue
+            if not dirs and not os.path.exists(os.path.join(root, "SKILL.md")):
+                err("E1", f"{os.path.relpath(root, ROOT)}: thu muc skill la ma khong co SKILL.md")
 
     for a in sorted(agents):
         ap = rel("agents", a, "AGENT.md")
         if not os.path.exists(ap):
             err("E2", f"agents/{a}/ thieu AGENT.md")
             continue
-        txt = open(ap, encoding="utf-8").read()
+        txt, _ = read_text_safe(ap)
+        txt = txt or ""
         sd = rel("agents", a, "skills")
         if os.path.isdir(sd):
             for s in os.listdir(sd):
-                if s not in txt:
+                if not re.search(rf"(?<![A-Za-z0-9_.-]){re.escape(s)}(?:/|\b)", txt):
                     err("E3", f"agents/{a}: skill {s!r} co tren dia nhung AGENT.md khong cho phep goi")
         if not os.path.exists(rel("agents", a, "manifest.json")):
             err("E4", f"agents/{a}/ thieu manifest.json")
@@ -635,21 +1057,38 @@ def check_crossrefs(mans, profile):
     dead = {
         "process-table.json": "da bo (moi field derived tu wbs.json)",
         "applies_to_project_types": "da bo (repo don loai project)",
-        "agents/dev-fe": "da bo (gop vao agents/mobile 2 phase)",
+        "agents/dev-fe": "da bo (gop vao agents/client 2 phase)",
+        "agents/mobile": "da doi ten thanh agents/client (role generic, nen tang do platform pack quyet dinh)",
+        "mobile-shell": "da doi ten thanh client-shell",
+        "mobile-screen": "da doi ten thanh client-screen",
+        "capabilities/native.json": "da doi ten thanh capabilities/client.json (mang duoc ca mobile va web)",
     }
+    # Cho phep GHI CHU LICH SU: file noi ro "da bo"/"da doi ten"/"truoc day" thi khong canh bao.
+    # Con lai la tham chieu THAT (tro vao thu khong con ton tai) va can sua. Danh sach marker
+    # mo rong cung dot doi ten mobile -> client: phan lon ghi chu moi la dang "TRUOC DAY ... gio ...".
+    HISTORY_MARKERS = ("da bi bo", "đã bị bỏ", "đã bỏ", "KHONG khai", "không còn",
+                       "da doi ten", "đã đổi tên", "TRUOC DAY", "TRƯỚC ĐÂY", "Trước đây",
+                       "Truoc day", "truoc day")
     for f in glob.glob(rel("**", "*.md"), recursive=True) + glob.glob(rel("**", "*.json"), recursive=True):
         if os.sep + "tools" + os.sep in f:
             continue
-        txt = open(f, encoding="utf-8").read()
+        txt, rerr = read_text_safe(f)
+        if rerr:
+            warn("E7b", f"{os.path.relpath(f, ROOT)}: khong doc duoc ({rerr}) -> bo qua file nay "
+                        f"thay vi lam ca validator chet (truoc day 1 file khong phai UTF-8 lam "
+                        f"Gate 0 + Gate 2 bien mat, khong in finding nao)")
+            continue
         for pat, why in dead.items():
-            if pat in txt and not any(k in txt for k in ("da bi bo", "đã bị bỏ", "đã bỏ", "KHONG khai", "không còn")):
+            if pat in txt and not any(k in txt for k in HISTORY_MARKERS):
                 warn("E7", f"{os.path.relpath(f, ROOT)}: con nhac {pat!r} ({why}) — kiem tra xem la "
                             f"ghi chu lich su hay tham chieu that")
 
     # anchor-tag role phai la agent that
     import re as _re
     for f in glob.glob(rel("shared", "**", "*.md"), recursive=True):
-        txt = open(f, encoding="utf-8").read()
+        txt, rerr = read_text_safe(f)
+        if rerr:
+            continue          # da bao o E7b
         for m in _re.finditer(r"<!--\s*tier:2\s+role:([a-z0-9,\-]+)", txt):
             for r in m.group(1).split(","):
                 if r and r not in agents:
@@ -665,7 +1104,7 @@ def check_design_prereqs():
     """Cuong che 2 dieu kien MOI trong kernel/gates/gate1-ba-cto-signoff.md (them cung dot voi
     nhanh Design/domain — xem shared/lessons_learned.md).
 
-    Truoc day node scope=project (design-system, mobile-shell...) nhan Tier2 RONG ma khong ai
+    Truoc day node scope=project (design-system, client-shell...) nhan Tier2 RONG ma khong ai
     bao (guard trong context_compile.py chi ap dung cho node co story_id that). Da vsua guard
     do, nhung sua o dispatch-time la QUA MUON — story dau tien da mat 1 vong design-system chay
     roi moi lo. Kiem o day (luc Gate 1, truoc generate_wbs) la re hon nhieu: BA/CTO thay ngay
@@ -739,6 +1178,109 @@ def check_design_prereqs():
             err("E12", f"shared/contracts/tech-stack.json: JSON khong parse duoc — {e}")
 
 
+# ─────────── H2. tech-stack.json: delivery_targets quyet dinh hinh dang WBS (E23-E24) ───────────
+# VI SAO NHOM NAY TON TAI: truoc day loai san pham la HANG SO AN trong kernel (moi project la
+# mobile app), nen khong co gi de kiem. Gio no la ket luan cua cto suy ra tu de bai, va
+# generate_wbs doc dung field nay de bat/tat unit. Sai o day khong lam file nao invalid ve cu
+# phap — no chi lam ca WBS sai HINH DANG. Day la lop loi dat nhat trong pipeline vi no xay ra o
+# BUOC DAU va moi thu sau do dung len tren no.
+def check_tech_stack(tech):
+    if tech is None:
+        return  # thieu/hong file: E12 da bao, khong bao trung
+    targets = tech.get("delivery_targets")
+    if not isinstance(targets, list) or not targets:
+        warn("E23", "shared/contracts/tech-stack.json: delivery_targets rong/thieu -> chua chot "
+                    "loai san pham, generate_wbs khong biet bat/tat unit nao (nhanh design/client/"
+                    "backend). Chay agents/cto/skills/decide_tech_stack/ TRUOC khi ky Gate 1. "
+                    "(WARN vi repo template chua co project that; voi project that day la dieu "
+                    "kien CHAN cua Gate 1 dieu 10.)")
+        return
+    bad = [t for t in targets if t not in VALID_TARGETS]
+    if bad:
+        err("E23", f"tech-stack.json: delivery_targets chua gia tri la {bad} — chi cho phep "
+                   f"{sorted(VALID_TARGETS)}. Gia tri la = generate_wbs va validator hieu khac "
+                   f"nhau ve viec unit nao ton tai.")
+    if len(set(targets)) != len(targets):
+        err("E23", f"tech-stack.json: delivery_targets co gia tri trung {targets}")
+
+    ctx = tech_ctx(tech)
+    entries = tech.get("entries")
+    if not isinstance(entries, list) or not entries:
+        err("E24", "tech-stack.json: khong co 'entries' -> khong ai biet platform/language nao. "
+                   "designer khong khoanh vung duoc thu vien UI, client khong chon duoc platform pack.")
+        entries = []
+
+    def is_placeholder(v):
+        return isinstance(v, str) and v.strip().startswith("<")
+
+    seen_targets = set()
+    for e in entries:
+        if not isinstance(e, dict):
+            err("E24", "tech-stack.json: entries chua phan tu khong phai object")
+            continue
+        t = e.get("delivery_target")
+        if is_placeholder(t):
+            warn("E24", "tech-stack.json: con entry MAU (delivery_target dang '<...>') — cto phai "
+                        "thay bang gia tri that va xoa entry cua target khong duoc chon.")
+            continue
+        if t not in VALID_TARGETS:
+            err("E24", f"tech-stack.json: entry co delivery_target={t!r} khong hop le "
+                       f"(cho phep {sorted(VALID_TARGETS)})")
+            continue
+        if ctx and t not in targets:
+            err("E24", f"tech-stack.json: co entry cho target {t!r} nhung target do KHONG nam trong "
+                       f"delivery_targets={targets} -> mau thuan noi bo, khong biet tin ben nao")
+        if t in seen_targets:
+            err("E24", f"tech-stack.json: co >1 entry cho target {t!r} -> khong xac dinh stack nao that")
+        seen_targets.add(t)
+
+        if e.get("story_id") != "PROJ":
+            err("E24", f"tech-stack.json: entry target {t!r} co story_id={e.get('story_id')!r}, phai la "
+                       f"'PROJ' (du lieu cap project — quy uoc PROJECT_STORY_KEY cua context_compile.py)")
+        roles = e.get("roles")
+        if not isinstance(roles, list) or not roles:
+            err("E24", f"tech-stack.json: entry target {t!r} thieu 'roles' -> context_compile.py loc "
+                       f"theo field nay, thieu = khong role nao doc duoc entry")
+        for f in ("platform", "language"):
+            if not e.get(f) or is_placeholder(e.get(f)):
+                err("E24", f"tech-stack.json: entry target {t!r} thieu {f!r}")
+        if t in CLIENT_TARGETS:
+            if not e.get("ui_framework") or is_placeholder(e.get("ui_framework")):
+                err("E24", f"tech-stack.json: entry client target {t!r} thieu 'ui_framework' -> "
+                           f"designer/component_discovery khong khoanh vung duoc thu vien UI")
+            pack = e.get("platform_pack")
+            if not pack or is_placeholder(pack):
+                err("E24", f"tech-stack.json: entry client target {t!r} thieu 'platform_pack' -> agent "
+                           f"client khong biet nap tri thuc nen tang nao (buoc 0 cua no)")
+            elif not os.path.isdir(rel("agents", "client", "skills", "platform", pack)):
+                err("E24", f"tech-stack.json: platform_pack={pack!r} KHONG co thu muc "
+                           f"agents/client/skills/platform/{pack}/ -> client khong doc duoc gi va phai "
+                           f"tu doan stack. Tao pack (agents/client/skills/platform/SKILL.md buoc 3) "
+                           f"hoac sua ten cho dung.")
+            sp = e.get("stack_pack")
+            if sp and not is_placeholder(sp) and pack and not is_placeholder(pack) \
+                    and not os.path.isdir(rel("agents", "client", "skills", "platform", pack, sp)):
+                err("E24", f"tech-stack.json: stack_pack={sp!r} khong co thu muc trong pack {pack!r}")
+
+    if ctx:
+        missing = set(targets) - seen_targets
+        if missing and seen_targets:
+            err("E24", f"tech-stack.json: delivery_targets co {sorted(missing)} nhung KHONG co entry "
+                       f"tuong ung -> phan viec do khong ai biet lam bang gi")
+        dec = tech.get("decision") or {}
+        if not dec.get("evidence"):
+            warn("E24", "tech-stack.json: decision.evidence rong -> delivery_targets khong co bang "
+                        "chung nao tro ve product_signals/PRD. Voi project that day la dieu kien CHAN "
+                        "cua Gate 1 dieu 10-11: khong co bang chung thi khong phan biet duoc 'suy ra "
+                        "tu de bai' voi 'chon theo quan tinh'.")
+        if not dec.get("alternatives_rejected"):
+            warn("E24", "tech-stack.json: decision.alternatives_rejected rong -> chon stack ma khong so "
+                        "sanh voi phuong an nao. Moi tranh luan ve sau phai lam lai tu dau.")
+        if not tech.get("locked"):
+            warn("E24", "tech-stack.json: locked=false -> stack chua khoa. Gate 1 dieu 10 doi "
+                        "locked:true + locked_at truoc khi ky, vi tu do no chi phoi ca DAG.")
+
+
 # ─────────── I. Screen layout: tung component kiem rieng (E13-E22) ───────────
 # Cuong che kernel/contracts/screen-layout.schema.json o phan JSON Schema KHONG bieu dien duoc:
 # rang buoc LIEN entry (ref co ton tai that khong, parent co tao vong khong) va static design
@@ -748,7 +1290,7 @@ def check_design_prereqs():
 # Khong co gi kiem tung COMPONENT ben trong -> do la cho sinh "bug vat": field null khong ai
 # xu ly, nut bam dan toi state khong ton tai, input khong validation, text dai lam vo bo cuc.
 # Ca 2 lop loi nay (logic + hien thi) lo ra o Gate 4 (QA) hoac o nguoi dung that, trong khi
-# chung kiem duoc ngay o tang du lieu — TRUOC khi mobile-screen sinh 1 dong code nao.
+# chung kiem duoc ngay o tang du lieu — TRUOC khi client-screen sinh 1 dong code nao.
 #
 # NHOM E22 (kich thuoc man hinh) them sau, cung ly do nhung o muc KHOI thay vi muc text:
 # truoc do ca hop dong khong co 1 field nao ve be rong/huong/co chu — lever duy nhat la
@@ -792,6 +1334,42 @@ def _responsive_contract():
     except Exception:
         return None  # loi parse tokens.json da duoc bao o cho khac
     return rc if isinstance(rc, dict) else None
+
+
+def _token_refs():
+    """Return valid flat token references, e.g. color.primary."""
+    try:
+        tokens = json.load(open(rel("shared", "design", "tokens.json"), encoding="utf-8"))
+    except Exception:
+        return set()
+    groups = ("color", "typography", "spacing", "radius", "elevation")
+    return {f"{group}.{key}" for group in groups
+            if isinstance(tokens.get(group), dict) for key in tokens[group]}
+
+
+def _api_fields_for_story(story_id):
+    """Collect bindable response/request fields for the story, including nested keys."""
+    try:
+        endpoints = json.load(open(rel("shared", "contracts", "api-contracts.json"), encoding="utf-8")).get("endpoints") or []
+    except Exception:
+        return set()
+    fields = set()
+
+    def walk(value, prefix=""):
+        if not isinstance(value, dict):
+            return
+        for key, child in value.items():
+            if str(key).startswith("_"):
+                continue
+            name = f"{prefix}.{key}" if prefix else str(key)
+            fields.update((name, str(key)))
+            walk(child, name)
+
+    for endpoint in endpoints:
+        if isinstance(endpoint, dict) and endpoint.get("story_id") == story_id:
+            walk(endpoint.get("request") or {})
+            walk(endpoint.get("responses") or {})
+    return fields
 
 
 def _children_map(comps):
@@ -883,6 +1461,7 @@ def check_screen_layouts(limits):
     max_pinned = rl.get("max_pinned_regions_per_state", 2)
     need_font_scale = rl.get("required_font_scale", 2.0)
     contract = _responsive_contract()
+    token_refs = _token_refs()
     req_tiers = list((contract or {}).get("required_tiers") or [])
     req_orients = list((contract or {}).get("target_orientations") or [])
     known_tiers = set(((contract or {}).get("breakpoints_dp") or {}).keys()) or set(_TIER_ORDER)
@@ -890,6 +1469,8 @@ def check_screen_layouts(limits):
 
     for path in files:
         name = os.path.basename(path)
+        screen_id = os.path.splitext(name)[0]
+        api_fields = _api_fields_for_story(screen_id)
         try:
             layout = json.load(open(path, encoding="utf-8"))
         except Exception as e:
@@ -898,6 +1479,12 @@ def check_screen_layouts(limits):
         if not isinstance(layout, dict):
             err("E13", f"shared/design/screens/{name}: goc phai la object")
             continue
+        # US-000 is the checked-in, deliberately unbound example.  It documents the
+        # shape before a project has an API contract or locked tokens; applying real
+        # project cross-reference checks to it would make every fresh template fail.
+        is_template_example = screen_id == "US-000" and "VI DU MAU" in str(layout.get("_comment", ""))
+        if is_template_example:
+            api_fields = set()
 
         # Key la o goc: schema co additionalProperties:false nen key ngoai danh sach nay la VI PHAM
         # HOP DONG. Kiem o day vi validator khong chay JSON Schema — thieu no thi 1 file ghi
@@ -914,7 +1501,7 @@ def check_screen_layouts(limits):
         expect_id = os.path.splitext(name)[0]
         if layout.get("screen_id") != expect_id:
             err("E13", f"shared/design/screens/{name}: screen_id={layout.get('screen_id')!r} khong "
-                       f"khop ten file (phai la {expect_id!r}) -> mobile-screen se lay sai story")
+                       f"khop ten file (phai la {expect_id!r}) -> client-screen se lay sai story")
 
         states = layout.get("states")
         comps = layout.get("components")
@@ -999,7 +1586,7 @@ def check_screen_layouts(limits):
             rref = c.get("registry_ref")
             if rref and registry_cats and rref not in registry_cats:
                 err("E14", f"{where} registry_ref={rref!r} khong co trong component-registry "
-                           f"-> mobile-screen se cai 1 dependency khong ai chon")
+                           f"-> client-screen se cai 1 dependency khong ai chon")
 
             it = c.get("interaction")
             if ctype in _CONTROL_TYPES and not isinstance(it, dict):
@@ -1037,6 +1624,10 @@ def check_screen_layouts(limits):
                 if b.get("on_null") == "fallback_text" and not b.get("fallback_text"):
                     err("E17", f"{where} bind field={b.get('field')!r} on_null=fallback_text nhung "
                                f"khong co noi dung fallback_text")
+                field = b.get("field")
+                if field and not is_template_example and field not in api_fields:
+                    err("E17b", f"{where} bind field={field!r} khong ton tai trong "
+                                f"api-contracts.json cua story {screen_id!r}")
 
             if ctype in _TEXT_TYPES and not isinstance(c.get("text_overflow"), dict):
                 err("E17", f"{where} type={ctype} thieu 'text_overflow' -> noi dung dai se lam vo "
@@ -1068,7 +1659,7 @@ def check_screen_layouts(limits):
 
                 if axis in _HORIZONTAL_AXES and not isinstance(cols, dict):
                     err("E22", f"{where} axis={axis} nhung khong khai 'columns' theo bac -> "
-                               f"mobile-screen tu doan so cot, moi story doan mot kieu")
+                               f"client-screen tu doan so cot, moi story doan mot kieu")
                 elif isinstance(cols, dict):
                     bad_tier = {k for k in cols if not k.startswith("_")} - known_tiers
                     if bad_tier:
@@ -1104,7 +1695,7 @@ def check_screen_layouts(limits):
                                        f"CON cua khoi nay -> khong the bo mot thu khoi khac so huu")
                     if n_kids > max_kids_no_degrade and not degrade:
                         err("E22", f"{where} co {n_kids} con (tran {max_kids_no_degrade}) nhung "
-                                   f"'degrade_order' rong -> khi het cho mobile-screen tu chon cai "
+                                   f"'degrade_order' rong -> khi het cho client-screen tu chon cai "
                                    f"gi bi cat, va no se cat DU LIEU truoc khi cat NHAN")
 
                 if resp.get("sizing") == "aspect_ratio" and not resp.get("aspect_ratio"):
@@ -1148,6 +1739,8 @@ def check_screen_layouts(limits):
                                f"-> hard-code, Gate 5 dieu 5")
                     continue
                 ref = v[len("token:"):]
+                if not is_template_example and ref not in token_refs:
+                    err("E18", f"{where} style.{k} tro token:{ref} KHONG ton tai trong tokens.json")
                 if ref.startswith("typography."):
                     type_keys.add(ref)
                 elif ref.startswith("color."):
@@ -1256,7 +1849,12 @@ def check_ownership(ownership, units, mans):
         err("F0", "data-ownership.json: khong co entry 'owners' nao")
         return
 
-    SPECIAL = {"__kernel__", "__human__", "__generated__"}
+    SPECIAL = {"__kernel__", "__human__", "__generated__", "__vendor__", "__per_node__"}
+    # Owner-kind BAT BUOC la thu muc: ca 2 dua tren viec moi writer co 1 duong dan con rieng.
+    # Khai chung cho 1 file don la vo nghia (va se che mat dung cai race can chan).
+    DIR_ONLY = {"__per_node__", "__vendor__"}
+    vendor_dirs = [p for p, o in owners.items() if o == "__vendor__"]
+
     for path, owner in owners.items():
         full = rel(*path.split("/"))
         is_dir = path.endswith("/")
@@ -1269,11 +1867,15 @@ def check_ownership(ownership, units, mans):
             err("F1", f"data-ownership: file {path!r} khong ton tai (owner={owner}) "
                        f"-> bang so huu tro vao file da bi xoa/doi ten")
 
+        if owner in DIR_ONLY and not is_dir:
+            err("F2", f"data-ownership: {path!r} co owner={owner} nhung khong phai thu muc "
+                       f"(phai ket thuc bang '/') — ca 2 owner-kind nay dua tren 'moi writer 1 "
+                       f"duong dan con rieng', khai cho 1 file don thi khong con chong duoc race")
         if owner in SPECIAL:
             continue
         if owner not in units:
             err("F2", f"data-ownership: owner {owner!r} cua {path!r} khong phai unit trong dag.json "
-                       f"(dung ten UNIT, vd 'mobile-shell', khong dung role 'mobile')")
+                       f"(dung ten UNIT, vd 'client-shell', khong dung role 'client')")
             continue
 
         # QUY TAC RACE: unit scope=story + file don + role concurrency>1 = 2 instance ghi cung file
@@ -1286,17 +1888,26 @@ def check_ownership(ownership, units, mans):
                        f"se ghi cung file va de mat du lieu cua nhau. Sua: doi thanh thu muc per-story "
                        f"('{path.rsplit('/', 1)[0]}/<STORY_ID>...'), HOAC dat concurrency=1 cho {role}.")
 
-    # phat hien file trong shared/ chua duoc khai chu so huu
+    # phat hien file trong shared/ chua duoc khai chu so huu.
+    # Cay __vendor__ duoc bo qua HOAN TOAN (khong duyet vao trong): xem _vendor_why —
+    # ~200 WARN tu 1 project Android tham khao lam ca kenh WARN khong doc duoc nua.
+    vendor_skipped = 0
     for f in glob.glob(rel("shared", "**", "*"), recursive=True):
         if os.path.isdir(f):
             continue
         p = os.path.relpath(f, ROOT).replace(os.sep, "/")
+        if any(p.startswith(d) for d in vendor_dirs):
+            vendor_skipped += 1
+            continue
         if p in owners:
             continue
         if any(p.startswith(d) for d in owners if d.endswith("/")):
             continue
         warn("F4", f"{p}: khong khai trong data-ownership.json -> khong biet ai duoc ghi, "
                     f"co the bi 2 agent ghi dong thoi ma khong ai phat hien")
+    if vendor_skipped:
+        print(f"  (F4: bo qua {vendor_skipped} file trong cay __vendor__ — "
+              f"{', '.join(vendor_dirs)})")
 
     # unit ghi >1 file don la OK; nhung 1 file co >1 owner thi JSON da khong cho phep (key trung)
     # -> kiem chieu nguoc: co unit nao duoc khai la owner cua ca file va thu muc cha khong
@@ -1440,8 +2051,8 @@ def selftest(units, mans):
     core_units = [u for u, d in units.items() if mans.get(d["role"], {}).get("core") is True]
     cap_units = [u for u, d in units.items() if mans.get(d["role"], {}).get("core") is False]
 
-    def show(label, track_units, monet=False, expect=None):
-        graph = {u: expected_deps(units, u, track_units, monet) for u in track_units}
+    def show(label, track_units, monet=False, expect=None, ctx=None):
+        graph = {u: expected_deps(units, u, track_units, monet, ctx) for u in track_units}
         ready = [u for u, d in graph.items() if not d]
         print(f"  {label}")
         for u in sorted(graph):
@@ -1456,20 +2067,66 @@ def selftest(units, mans):
                     err("S2", f"selftest[{label}]: {u}.depends_on ky vong {exp}, duoc {graph.get(u)}")
         return graph
 
+    def build_set(ctx, with_caps=False):
+        """Tap unit track build cho 1 hinh dang delivery_targets — mo phong dung buoc 0 cua
+        skills/generate_wbs/SKILL.md: loc (a) theo core/capability, roi (b) theo only_if tech_stack.*"""
+        pool = core_units + (cap_units if with_caps else [])
+        out = []
+        for u in pool:
+            if u in ("po", "ba", "cto"):
+                continue
+            tech_exprs = [e for e in (units[u].get("only_if") or []) if e.startswith("tech_stack.")]
+            if tech_exprs and eval_only_if(tech_exprs, ctx) is not True:
+                continue
+            out.append(u)
+        return out
+
     show("track intake", ["po", "ba", "cto"],
          expect={"po": [], "ba": ["po"], "cto": ["ba"]})
 
-    build_units = [u for u in core_units if u not in ("po", "ba", "cto")]
-    show("track build (khong ads)", build_units,
-         expect={"qa": ["dev-be", "mobile-screen"]})
+    # ── 3 HINH DANG SAN PHAM (thay cho gia dinh "moi project la mobile app") ──
+    # Day la phan selftest quan trong nhat sau khi kernel het mac dinh mobile: cung 1 dag.json
+    # phai sinh ra 3 sub-DAG dung, va moi sub-DAG phai co it nhat 1 unit ready (khong treo).
+    shapes = {
+        "client + backend (vd mobile_native + backend_service)": ["mobile_native", "backend_service"],
+        "chi client (vd web_app local-first)": ["web_app"],
+        "chi backend (API thuan, khong co man hinh)": ["backend_service"],
+    }
+    expects = {
+        "client + backend (vd mobile_native + backend_service)": {"qa": ["client-screen", "dev-be"]},
+        "chi client (vd web_app local-first)": {"qa": ["client-screen"]},
+        "chi backend (API thuan, khong co man hinh)": {"qa": ["dev-be"]},
+    }
+    for label, targets in shapes.items():
+        ctx = tech_ctx({"delivery_targets": targets})
+        bu = build_set(ctx)
+        exp = {k: sorted(v) for k, v in expects[label].items()}
+        g = show(f"track build [{label}] targets={targets}", bu, expect=exp, ctx=ctx)
+        # nhanh bi tat thi KHONG duoc con sot unit nao cua nhanh do
+        if not ctx["has_client"]:
+            leaked = [u for u in bu if u in ("design-system", "designer-screen",
+                                             "client-shell", "client-screen", "ads-setup",
+                                             "ads-placement")]
+            if leaked:
+                err("S4", f"selftest[{label}]: unit client/design {leaked} van con du has_client=False")
+        if not ctx["has_backend"] and "dev-be" in bu:
+            err("S4", f"selftest[{label}]: unit dev-be van con du has_backend=False")
+        if "qa" in g and not g["qa"]:
+            err("S5", f"selftest[{label}]: qa khong cho ai ca -> khong con diem tich hop nao, "
+                      f"story se duoc coi la xong ma chua ai kiem")
 
-    show("track build (+ads, Monetization:true)", build_units + cap_units, monet=True,
-         expect={"qa": ["ads-placement", "dev-be", "mobile-screen"],
-                 "ads-placement": ["ads-setup", "mobile-screen"]})
+    ctx_full = tech_ctx({"delivery_targets": ["mobile_native", "backend_service"]})
+    show("track build (+ads, Monetization:true)", build_set(ctx_full, with_caps=True), monet=True,
+         expect={"qa": ["ads-placement", "client-screen", "dev-be"],
+                 "ads-placement": ["ads-setup", "client-screen"]}, ctx=ctx_full)
 
-    for entry in ("mobile-screen", "dev-be"):
-        cl = [u for u in downstream_closure(units, entry) if not units[u].get("only_if")]
-        show(f"track runtime (entry={entry})", cl, expect={entry: []})
+    # Runtime: dong goi xuoi dong tu entry unit, loai unit co only_if KHONG thoa.
+    # monetization=False co y (track runtime mo phong 1 bug story khong monetization) —
+    # neu de None thi eval tra None va unit se bi hieu la "chua biet" roi lot vao track.
+    for entry in ("client-screen", "dev-be"):
+        cl = [u for u in downstream_closure(units, entry)
+              if eval_only_if(units[u].get("only_if") or [], ctx_full, monetization=False) is True]
+        show(f"track runtime (entry={entry})", cl, expect={entry: []}, ctx=ctx_full)
 
     for a in sorted(agents):
         if not any(units[u]["role"] == a for u in units):
@@ -1483,6 +2140,9 @@ def main():
     ap.add_argument("--json", action="store_true", help="output JSON cho tool tu dong doc")
     args = ap.parse_args()
 
+    global SELFTEST
+    SELFTEST = args.selftest
+
     schema = load_json("kernel/contracts/agent-manifest.schema.json", "A0")
     msg_schema = load_json("kernel/contracts/message.schema.json", "D0")
     dag = load_json("kernel/contracts/dag.json", "B0")
@@ -1491,17 +2151,19 @@ def main():
     escalation = load_json("kernel/config/escalation.json", "A0b")
     ownership = load_json("kernel/contracts/data-ownership.json", "F0b")
     limits = load_json("kernel/config/limits.json", "L0")
+    tech = load_json("shared/contracts/tech-stack.json", "E12b", )
     boot_schema = load_json("kernel/contracts/boot-context.schema.json", "G0")
 
     mans = check_manifests(schema, escalation)
     units = check_dag(dag, mans)
-    nodes = check_wbs(wbs, units, mans, profile, limits) if units else {}
+    nodes = check_wbs(wbs, units, mans, profile, limits, tech) if units else {}
     if units:
         check_mailbox(msg_schema, nodes, units, dag, mans, limits)
         check_ownership(ownership, units, mans)
         check_boot(boot_schema, nodes, units, mans, dag)
     check_crossrefs(mans, profile)
     check_design_prereqs()
+    check_tech_stack(tech)
     check_screen_layouts(limits)
     if args.selftest and units:
         selftest(units, mans)

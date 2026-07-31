@@ -2,8 +2,11 @@
   "_comment": "BẢN MÁY ĐỌC của kernel/rules/routing-table.md. Gate 0 và Gate 2 kiểm bằng LOOKUP file này, không phải đọc hiểu bảng markdown. routing-table.md là bản giải thích cho người — sửa 1 trong 2 thì PHẢI sửa cái kia.",
   "_unit_note": "unit = đơn vị nhỏ nhất có thể là 1 node trong wbs.json. Agent 1 phase -> unit = role. Agent nhiều phase -> unit = role-phase. scope quyết định số node sinh ra: story = 1/story, project = 1/project, release = 1/release.",
   "_gate1_note": "'gate1' là pseudo-unit đại diện mốc BA+CTO signoff. Node có depends_on:['gate1'] thì generate_wbs khởi tạo status:ready ngay (vì skill chỉ chạy SAU khi Gate 1 pass) và KHÔNG giữ 'gate1' trong depends_on thật.",
-  "_two_graphs": "CÓ 2 ĐỒ THỊ RIÊNG BIỆT, không trộn vào 1 field: (a) 'feeds'/'depends_on' = Build Mode DAG, BẮT BUỘC đối xứng — mọi u trong X.feeds thì X phải nằm trong u.depends_on (hoặc u.conditional_depends_on). (b) 'runtime_feeds' = đường tắt Runtime Mode (feature_request size S, bug_report), KHÔNG đối xứng vì nó bỏ qua nhiều bước của Build DAG. Trộn 2 cái này vào 1 field làm validator không thể kiểm được đồ thị nào cả.",
-  "_designer_two_phases_note": "agent `designer` có 2 phase theo đúng mẫu mobile-shell/mobile-screen: `design-system` (scope project, chạy 1 lần, chốt design token cho cả app) và `designer-screen` (scope story, vẽ layout từng story). ĐÂY LÀ NGOẠI LỆ CÓ CHỦ ĐÍCH so với câu 'designer chỉ phụ thuộc Gate 1' trước đây: `designer-screen` PHẢI chờ `design-system` done (tức gate7 pass = người đã chọn theme), vì nếu không thì nó lại tự bịa màu/spacing riêng cho từng story — đúng vấn đề mà tầng token sinh ra để giải quyết. Trade-off: story đầu tiên chờ thêm 1 vòng người-chọn-theme, chỉ 1 lần/project.",
+  "_pseudo_units": "CÓ ĐÚNG 2 pseudo-unit, không bao giờ sinh node: (a) 'gate1' = mốc BA+CTO signoff, xuất hiện ở feeds/depends_on. (b) '__end__' = ĐIỂM KẾT, chỉ xuất hiện ở feeds. Cả hai được miễn kiểm đối xứng (B5/B6/B8/B9 bỏ qua).",
+  "_end_note": "VÌ SAO CẦN '__end__': unit lá (devops-infra, devops-release) trước đây khai feeds:[] — nghĩa là allowed_handoff_to rỗng (context_compile.resolve_permissions) và MỌI handoff của nó bị D10 chặn. Nhưng gate3/gate6 của chính 2 unit đó có điều kiện pass là 'emit type:handoff'. Tức node lá KHÔNG CÓ CÁCH NÀO báo hoàn thành: làm xong thì gate không pass được, mà emit thì Gate 0 chặn. feeds:[] mang 2 nghĩa bị trộn — 'chưa khai' và 'đây là điểm kết'. '__end__' tách 2 nghĩa đó: khai tường minh 'xong thì báo kernel, không có agent nào xuôi dòng'. Orchestrator nhận handoff to:__end__ thì chạy gate rồi đánh done, KHÔNG route tiếp.",
+  "_two_graphs": "CÓ 3 ĐỒ THỊ RIÊNG BIỆT, không trộn vào 1 field: (a) 'feeds'/'depends_on' = Build Mode DAG, BẮT BUỘC đối xứng — mọi u trong X.feeds thì X phải nằm trong u.depends_on (hoặc u.conditional_depends_on); pseudo-unit được miễn. (b) 'runtime_feeds' = đường tắt Runtime Mode (feature_request size S, bug_report), KHÔNG đối xứng vì nó bỏ qua nhiều bước của Build DAG. (c) 'reject_feeds' = ĐƯỜNG TRẢ VỀ khi gate của chính unit đó phát hiện việc xuôi dòng chưa đạt (hiện chỉ qa), KHÔNG đối xứng và đi NGƯỢC chiều DAG. Trộn chúng vào 1 field làm validator không thể kiểm được đồ thị nào cả.",
+  "_reject_note": "VÌ SAO CẦN 'reject_feeds': đường FAIL CHÍNH của cả pipeline trước đây không được mô hình hoá ở đâu. qa.feeds chỉ có devops-release, nên khi QA test ra bug thì agents/qa/AGENT.md bảo 'emit handoff về dev-be/client/ads' — và D10 chặn đúng cái handoff đó. Kết quả: QA hoặc phải im lặng cho pass, hoặc phải vi phạm Gate 0. Lưu ý ngữ nghĩa: message đi theo reject_feeds KHÔNG phải fail của node GỬI (qa làm đúng việc của nó: tìm ra bug). Nó là fail của node NHẬN. Vì vậy Orchestrator xử lý khác handoff thường — xem ORCHESTRATOR.md §7c.",
+  "_designer_two_phases_note": "agent `designer` có 2 phase theo đúng mẫu client-shell/client-screen: `design-system` (scope project, chạy 1 lần, chốt design token cho cả app) và `designer-screen` (scope story, vẽ layout từng story). ĐÂY LÀ NGOẠI LỆ CÓ CHỦ ĐÍCH so với câu 'designer chỉ phụ thuộc Gate 1' trước đây: `designer-screen` PHẢI chờ `design-system` done (tức gate7 pass = người đã chọn theme), vì nếu không thì nó lại tự bịa màu/spacing riêng cho từng story — đúng vấn đề mà tầng token sinh ra để giải quyết. Trade-off: story đầu tiên chờ thêm 1 vòng người-chọn-theme, chỉ 1 lần/project.",
   "schema_version": 1,
   "units": {
     "po": {
@@ -16,7 +19,7 @@
       ],
       "runtime_feeds": [
         "dev-be",
-        "mobile-screen"
+        "client-screen"
       ],
       "gate": null
     },
@@ -57,7 +60,10 @@
         "designer-screen"
       ],
       "runtime_feeds": [],
-      "gate": "gate7"
+      "gate": "gate7",
+      "only_if": [
+        "tech_stack.has_client == true"
+      ]
     },
     "designer-screen": {
       "role": "designer",
@@ -68,10 +74,13 @@
         "design-system"
       ],
       "feeds": [
-        "mobile-screen"
+        "client-screen"
       ],
       "runtime_feeds": [],
-      "gate": "gate5"
+      "gate": "gate5",
+      "only_if": [
+        "tech_stack.has_client == true"
+      ]
     },
     "dev-be": {
       "role": "dev-be",
@@ -84,35 +93,44 @@
         "qa"
       ],
       "runtime_feeds": [],
-      "gate": "gate3"
+      "gate": "gate3",
+      "only_if": [
+        "tech_stack.has_backend == true"
+      ]
     },
-    "mobile-shell": {
-      "role": "mobile",
-      "phase": "mobile-shell",
+    "client-shell": {
+      "role": "client",
+      "phase": "client-shell",
       "scope": "project",
       "depends_on": [
         "gate1"
       ],
       "feeds": [
-        "mobile-screen"
+        "client-screen"
       ],
       "runtime_feeds": [],
-      "gate": "gate3"
+      "gate": "gate3",
+      "only_if": [
+        "tech_stack.has_client == true"
+      ]
     },
-    "mobile-screen": {
-      "role": "mobile",
-      "phase": "mobile-screen",
+    "client-screen": {
+      "role": "client",
+      "phase": "client-screen",
       "scope": "story",
       "depends_on": [
         "designer-screen",
-        "mobile-shell"
+        "client-shell"
       ],
       "feeds": [
         "qa",
         "ads-placement"
       ],
       "runtime_feeds": [],
-      "gate": "gate3"
+      "gate": "gate3",
+      "only_if": [
+        "tech_stack.has_client == true"
+      ]
     },
     "devops-infra": {
       "role": "devops",
@@ -121,7 +139,9 @@
       "depends_on": [
         "gate1"
       ],
-      "feeds": [],
+      "feeds": [
+        "__end__"
+      ],
       "runtime_feeds": [],
       "gate": "gate3"
     },
@@ -136,14 +156,17 @@
         "ads-placement"
       ],
       "runtime_feeds": [],
-      "gate": "gate3"
+      "gate": "gate3",
+      "only_if": [
+        "tech_stack.has_client == true"
+      ]
     },
     "ads-placement": {
       "role": "ads",
       "phase": "ads-placement",
       "scope": "story",
       "depends_on": [
-        "mobile-screen",
+        "client-screen",
         "ads-setup"
       ],
       "feeds": [
@@ -151,7 +174,10 @@
       ],
       "runtime_feeds": [],
       "gate": "gate3",
-      "only_if": "story.Monetization == true"
+      "only_if": [
+        "story.Monetization == true",
+        "tech_stack.has_client == true"
+      ]
     },
     "qa": {
       "role": "qa",
@@ -159,18 +185,26 @@
       "scope": "story",
       "depends_on": [
         "dev-be",
-        "mobile-screen"
+        "client-screen"
       ],
       "conditional_depends_on": [
         {
           "unit": "ads-placement",
-          "only_if": "story.Monetization == true"
+          "only_if": [
+            "story.Monetization == true"
+          ]
         }
       ],
       "feeds": [
         "devops-release"
       ],
       "runtime_feeds": [],
+      "reject_feeds": [
+        "dev-be",
+        "client-screen",
+        "ads-placement"
+      ],
+      "_reject_why": "Gate 4 fail = story chưa đạt, KHÔNG phải qa làm sai. qa gửi bug_report về đúng unit đã dựng phần lỗi. Orchestrator: node nhận -> ready + consecutive_fail += 1 (fail THẬT của nó), node qa -> blocked (phải kiểm lại sau khi sửa). Giao tập với unit CÓ NODE trong track vẫn áp dụng: track runtime chỉ có client-screen thì chỉ trả về đó.",
       "gate": "gate4"
     },
     "devops-release": {
@@ -180,7 +214,9 @@
       "depends_on": [
         "qa"
       ],
-      "feeds": [],
+      "feeds": [
+        "__end__"
+      ],
       "runtime_feeds": [],
       "gate": "gate6"
     }
@@ -199,20 +235,22 @@
     ],
     "cto": [
       "ba",
+      "designer",
       "dev-be",
-      "mobile",
+      "client",
       "devops",
       "ads"
     ],
     "designer": [
       "ba",
-      "mobile",
+      "cto",
+      "client",
       "ads"
     ],
     "dev-be": [
       "cto"
     ],
-    "mobile": [
+    "client": [
       "cto",
       "designer"
     ],
@@ -228,7 +266,11 @@
       "ba"
     ]
   },
+  "_sync_cto_designer_note": "Cạnh `designer <-> cto` mới thêm: agents/designer/AGENT.md yêu cầu designer mở Sync Session với `cto` khi thiếu dải kích thước màn hình / min OS để điền `responsive_contract`. Trước đây cạnh đó KHÔNG có trong map (designer:[ba,client,ads], cto không có designer) — nên Gate 0 điều 5 (D11) sẽ chặn đúng cái Sync Session mà AGENT.md bắt phải mở. Thêm cả 2 chiều vì map này BẮT BUỘC đối xứng (B13).",
+  "_sync_answering_note": "AI TRẢ LỜI được: role được hỏi phải CÓ NODE để ghi message (message.node_id = node của người GỬI, và D9 chặn mạo danh node của role khác). Nhưng `ba`/`cto` chỉ có node ở track `intake`, và lúc designer/qa cần hỏi thì các node đó đã `done` từ lâu -> message request nằm mãi processed_at:null, node hỏi treo `running` tới khi C28 báo 'agent hang' (chẩn đoán SAI). Vì vậy Orchestrator sinh SYNC NODE tạm (`kind:'sync'`) cho role được hỏi — xem ORCHESTRATOR.md §7d. Sync node KHÔNG phải unit, không có gate, không nằm trong DAG, chỉ tồn tại để 1 role có địa chỉ mà trả lời.",
   "_sync_po_note": "Cạnh `ba <-> po` mới thêm: skill_classify_domain (agents/ba/skills/) khi suy luận domain của 1 story ra confidence thấp thì `ba` PHẢI hỏi lại `po` thay vì tự khoá domain sai vào shared/contracts/domain-map.json — domain sai làm designer nạp sai domain skill, và sai đó chỉ lộ ra ở Gate 5 hoặc muộn hơn.",
   "_core_note": "core KHÔNG khai ở đây. core-ness của 1 unit = agents/<unit.role>/manifest.json .core — vì project-profile.active_capability_agents liệt kê AGENT (bật/tắt cả agent, không bật/tắt lẻ 1 phase).",
-  "_gate_numbering_note": "So gate danh theo THU TU TAO RA, khong theo thu tu trong DAG. Thu tu chay thuc te: gate0 (moi dispatch) -> gate1 (cto) -> gate2 (sau generate_wbs) -> gate7 (design-system, can nguoi chon theme) -> gate5 (designer-screen) -> gate3 (dev-be/mobile/ads) -> gate4 (qa) -> gate6 (devops-release)."
+  "_gate_numbering_note": "So gate danh theo THU TU TAO RA, khong theo thu tu trong DAG. Thu tu chay thuc te: gate0 (moi dispatch) -> gate1 (cto) -> gate2 (sau generate_wbs) -> gate7 (design-system, can nguoi chon theme) -> gate5 (designer-screen) -> gate3 (dev-be/client/ads) -> gate4 (qa) -> gate6 (devops-release).",
+  "_only_if_grammar": "VAN PHAM DONG cua only_if. only_if la MANG bieu thuc, ngu nghia AND (rong hoac thieu = luon bat). CHI 3 bieu thuc duoi day hop le; them cai moi thi PHAI cai dat trong kernel/tools/validate.py (eval_only_if) cung luc, neu khong validator fail-closed va bao ma B16. (1) 'story.Monetization == true' -> story do co Monetization: true trong shared/PRD.md. (2) 'tech_stack.has_client == true' -> shared/contracts/tech-stack.json.delivery_targets GIAO {mobile_native, web_app} khac rong. (3) 'tech_stack.has_backend == true' -> delivery_targets chua 'backend_service'. VI SAO DONG (va vi sao la MANG chu khong phai chuoi tu do): only_if quyet dinh unit co sinh node hay khong. Cu phap tu do nghia la generate_wbs (LLM) va validate.py (Python) phai 'doc hieu' cung 1 chuoi va co the hieu khac nhau — dung lop loi ma manifest.depends_on va process-table.json da mac. Mang bieu thuc co san thi ca 2 ben chi LOOKUP.",
+  "_delivery_target_note": "KERNEL KHONG CON MAC DINH MOBILE. Truoc day unit mobile-shell/mobile-screen luon sinh node nen moi project deu la app dien thoai; role client-side ten 'mobile' va tri thuc Android nam thang trong agents/mobile/skills/. Gio: po ghi product_signals (kernel/memory/project-profile.json) -> cto suy ra delivery_targets (shared/contracts/tech-stack.json, skill decide_tech_stack) -> generate_wbs CHI sinh node cho unit co only_if thoa. He qua: project backend thuan khong sinh node designer/client nao; project web local-first khong sinh node dev-be. Role client-side ten 'client' voi 2 phase client-shell/client-screen, nen tang do platform pack quyet dinh (agents/client/skills/platform/<pack>/)."
 }

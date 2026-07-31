@@ -23,6 +23,9 @@ import re
 import sys
 from datetime import datetime, timezone
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _atomic import write_atomic
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -57,6 +60,37 @@ def load_json(path, required=True):
 
 def strip_meta(d):
     return {k: v for k, v in d.items() if not k.startswith("_")}
+
+
+# Ky tu khien 1 scalar YAML khong con la scalar thuong neu de tran.
+_YAML_NEEDS_QUOTE = set(":#[]{}&*!|>'\"%@`,")
+
+
+def yaml_scalar(v):
+    """Tra ve dang YAML AN TOAN cua 1 gia tri vo huong.
+
+    VI SAO CAN: render() truoc day noi thang f"{k}: {v}". `last_error` la VAN BAN TU DO do
+    Orchestrator ghi tu log gate fail that (vd output cua `flutter analyze`), thuong NHIEU DONG.
+    Ket qua da kiem: boot context co
+        last_error: flutter analyze:
+          3 errors in otp.dart
+    lam validate.parse_frontmatter tra loi "dong khong phai 'key: value'" -> ma G2, va
+    frontmatter trong prompt cua agent vo cau truc. Lop loi nay chi xay ra o duong RETRY —
+    tuc dung luc moi thu da dang sai, va no bien 1 lan retry thanh 1 lan hong han.
+    """
+    s = str(v)
+    if s == "":
+        return '""'
+    needs = ("\n" in s or "\r" in s or "\t" in s
+             or s != s.strip()                              # dau/cuoi co khoang trang
+             or s[0] in "-?:,[]{}#&*!|>'\"%@`"              # ky tu mo dau dac biet cua YAML
+             or any(c in _YAML_NEEDS_QUOTE for c in s)
+             or s.lower() in ("null", "true", "false", "~", "yes", "no", "on", "off"))
+    if not needs:
+        return s
+    esc = (s.replace("\\", "\\\\").replace('"', '\\"')
+            .replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t"))
+    return f'"{esc}"'
 
 
 def now_iso():
@@ -97,8 +131,13 @@ def slice_markdown(path, role, story_id):
         start = m.end()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
         block = text[start:end].strip()
-        # bo phan sau neu gap heading cap 1 (sang muc khac cua file)
-        block = re.split(r"\n#\s", block)[0].strip()
+        # Cat o heading BAT KY CAP (#, ##, ###...) — sang muc khac cua file thi het pham vi tag.
+        # TRUOC DAY chi cat o cap 1 (r"\n#\s"), trong khi shared/architecture.md va
+        # shared/system-spec.md khong he co heading cap 1 nao -> block cua anchor CUOI CUNG hut
+        # toan bo phan con lai cua file. Hien tai chua vo chi vi tinh co co anchor thu hai theo
+        # sau. Voi 1 architecture.md that (dai, anchor nam gan dau file) thi day chinh la cach
+        # bundle no ngan sach — va thong bao loi luc do lai do cho "thiet ke tagging".
+        block = re.split(r"\n#{1,6}\s", block)[0].strip()
         if block:
             out.append((f"{path}#{story}", block))
 
@@ -150,7 +189,7 @@ def slice_json_entries(path, role, story_id, list_key, default_roles):
 #
 # Vi sao: neu tool giu them 1 danh sach rieng thi co 2 nguon su that cho cung 1 cau hoi
 # "role nay duoc doc gi" — va chung se lech. Da tung xay ra that: tag PRD.md cho phep
-# `mobile` doc, nhung danh sach trong tool lai khong nap PRD -> mobile mat acceptance
+# `client` doc, nhung danh sach trong tool lai khong nap PRD -> client mat acceptance
 # criteria ma khong ai bao loi. Day dung la lop loi da khien manifest.depends_on va
 # process-table.json bi bo.
 #
@@ -159,15 +198,20 @@ def slice_json_entries(path, role, story_id, list_key, default_roles):
 # JSON khong co comment nen phai biet SHAPE cua tung file (mang nao chua entry).
 # Day la kien thuc ve CAU TRUC, khong phai ve QUYEN — nen o day la dung cho.
 JSON_SHAPES = [
-    ("shared/contracts/api-contracts.json", "endpoints", ["cto", "dev-be", "mobile", "qa"]),
-    ("shared/capabilities/native.json", "permissions", ["mobile", "ads", "qa", "devops"]),
+    ("shared/contracts/api-contracts.json", "endpoints", ["cto", "dev-be", "client", "qa"]),
+    ("shared/capabilities/client.json", "permissions", ["client", "ads", "qa", "devops"]),
     ("shared/contracts/domain-map.json", "stories", ["designer"]),
-    ("shared/contracts/tech-stack.json", "entries", ["designer"]),
+    # default_roles cua tech-stack MO RONG tu ["designer"] sang ca client/dev-be/devops/qa:
+    # tu khi de bai quyet dinh tech stack, entry nay khong con chi de designer khoanh vung thu
+    # vien UI — `client` doc no o BUOC 0 de biet nap platform pack nao (khong co thi no phai tu
+    # doan stack, dung lop loi ma tang tech-stack sinh ra de chan). Van la default: entry co
+    # field `roles` thi `roles` thang.
+    ("shared/contracts/tech-stack.json", "entries", ["designer", "client", "dev-be", "devops", "qa"]),
 ]
 
 # Khoa lat cat cho node KHONG thuoc 1 story (scope=project/release).
 # TRUOC DAY nhung node nay nhan Tier 2 RONG hoan toan — anchor-tag chi co truc `story:`,
-# nen mobile-shell/devops-infra/ads-setup/design-system deu khong nhan duoc gi tu shared/
+# nen client-shell/devops-infra/ads-setup/design-system deu khong nhan duoc gi tu shared/
 # du AGENT.md cua chung khai la "doc anchor-tag slice cua architecture.md/system-spec.md".
 # Voi design-system dieu do la chi mang: no phai suy ra design token ma khong co dau vao nao
 # ve brand/doi tuong nguoi dung/app tham chieu -> se bia ra token. Cach sua nho nhat va dung
@@ -206,37 +250,77 @@ def gather_tier2(role, tier2_key):
 
 
 # ─────────────────────────── Quyen han (co dac tu dag.json) ───────────────────────────
-def resolve_permissions(dag, node, role, phase):
+def resolve_permissions(dag, node, role, phase, nodes=None):
     units = strip_meta(dag.get("units", {}))
+
+    # SYNC NODE (§7d): node tam de 1 role co dia chi ma tra loi. Khong thuoc unit nao.
+    # Quyen bi bo CHAT hon sync_allowed thong thuong: chi duoc tra loi dung ben da hoi,
+    # va KHONG duoc handoff (khong duoc bat dau viec moi ma khong ai yeu cau).
+    if node.get("kind") == "sync":
+        asker = (nodes or {}).get(node.get("sync_for_node")) or {}
+        if not asker:
+            die(f"sync node {node.get('node_id')!r} co sync_for_node="
+                f"{node.get('sync_for_node')!r} khong ton tai trong wbs.json")
+        return None, None, [], [asker.get("role")] if asker.get("role") else []
+
     unit = next((u for u, d in units.items()
                  if d.get("role") == role and d.get("phase") == phase), None)
     if unit is None:
         die(f"khong tim thay unit trong dag.json cho (role={role}, phase={phase})")
     d = units[unit]
-    handoff = sorted({units[f]["role"] for f in d.get("feeds", []) if f in units}
-                     | {units[f]["role"] for f in d.get("runtime_feeds", []) if f in units})
+    # Build Mode dung `feeds`; track runtime duoc dung them duong tat `runtime_feeds`.
+    feed_units = list(d.get("feeds", []))
+    if node.get("track") == "runtime":
+        feed_units += list(d.get("runtime_feeds", []))
+    handoff = {units[f]["role"] for f in feed_units if f in units}
+    # Duong TRA VE (do thi thu ba): qa gui bug_report nguoc ve unit da dung phan loi.
+    handoff |= {units[f]["role"] for f in d.get("reject_feeds", []) if f in units}
+    # __end__ = diem ket. Phai giu nguyen van trong danh sach: node la CAN mot dich hop le de
+    # bao xong, neu khong thi gate cua no (doi "emit handoff") khong bao gio pass duoc.
+    if "__end__" in d.get("feeds", []):
+        handoff.add("__end__")
     sync = sorted(strip_meta(dag.get("sync_allowed", {})).get(role, []))
-    return unit, d.get("gate"), handoff, sync
+    return unit, d.get("gate"), sorted(handoff), sync
 
 
 def resolve_skills(role):
+    """Resolve explicit skill declarations without granting a skill from prose mentions."""
     own = []
     sd = rel("agents", role, "skills")
     if os.path.isdir(sd):
         own = sorted(s for s in os.listdir(sd) if os.path.isdir(os.path.join(sd, s)))
     shared = sorted(s for s in os.listdir(rel("skills"))
                     if os.path.isdir(rel("skills", s))) if os.path.isdir(rel("skills")) else []
-    # chi liet ke skill dung chung ma AGENT.md cua role nay co nhac den
+    # Shared skills must be referenced by their full path.  A substring check let a
+    # skill named `domain` leak to every role whose prose mentioned "domain".
     ap = rel("agents", role, "AGENT.md")
     txt = open(ap, encoding="utf-8").read() if os.path.exists(ap) else ""
-    return own + [s for s in shared if s in txt]
+    declared = set(re.findall(r"(?<![A-Za-z0-9_.-])skills/([A-Za-z0-9_.-]+)(?:/|\b)", txt))
+    return own + [s for s in shared if s in declared]
 
 
 # ─────────────────────────── Inbox ───────────────────────────
+def _unquote(v):
+    """Bo quote quanh 1 scalar YAML. PHAI giong validate.parse_frontmatter, neu khong 3 tool
+    se khong dong y voi nhau ve message nao dang cho xu ly.
+
+    Da tung lech that: context_compile va digest so chuoi THO nen `processed_at: 'null'` (co
+    quote) bi doc la DA xu ly -> message bi loai khoi inbox va agent khong bao gio thay no,
+    trong khi validate.py (co strip quote) van thay no dang cho.
+    """
+    return v.strip().strip("'\"")
+
+
+def is_unprocessed(fm):
+    """Co consume: chua duoc Orchestrator xu ly. 1 noi dinh nghia duy nhat."""
+    return _unquote(str(fm.get("processed_at", "null"))) in ("null", "~", "")
+
+
 def _read_all_messages():
     msgs = []
     for p in sorted(glob.glob(rel("kernel", "mailbox", "*.md"))):
-        text = open(p, encoding="utf-8").read()
+        with open(p, encoding="utf-8", errors="replace") as f:
+            text = f.read()
         if not text.startswith("---"):
             continue
         end = text.find("\n---", 3)
@@ -246,7 +330,7 @@ def _read_all_messages():
         for line in text[3:end].splitlines():
             if ":" in line:
                 k, v = line.split(":", 1)
-                fm[k.strip()] = v.strip()
+                fm[k.strip()] = _unquote(v)
         msgs.append((fm, text[end + 4:].strip(), os.path.basename(p)))
     return msgs
 
@@ -265,22 +349,41 @@ def gather_inbox(node):
         Sync Session mot luc.
     """
     role, story = node.get("role"), node.get("story_id")
+    nid = node.get("node_id")
     all_msgs = _read_all_messages()
     # map request_id -> node_id cua request goc
     req_owner = {fm.get("request_id"): fm.get("node_id")
                  for fm, _, _ in all_msgs if fm.get("type") == "request" and fm.get("request_id")}
 
+    # Unit xuoi dong cua node nay (theo dag.json feeds/reject_feeds): message hop le phai den
+    # TU 1 trong cac unit thuong nguon. Dung de loc message cho node KHONG co story (xem duoi).
     out = []
     for fm, body, fname in all_msgs:
-        if fm.get("processed_at", "null") not in ("null", "~", ""):
+        if not is_unprocessed(fm):
             continue
         if fm.get("to") != role:
             continue
-        mstory = fm.get("task_id")
-        if story and mstory and mstory != story:
-            continue
+
         if fm.get("type") == "response":
-            if req_owner.get(fm.get("request_id")) != node.get("node_id"):
+            # response chi thuoc ve dung node da mo request do
+            if req_owner.get(fm.get("request_id")) != nid:
+                continue
+            out.append((fm, body, fname))
+            continue
+
+        mstory = fm.get("task_id")
+        if story:
+            if mstory and mstory != story:
+                continue
+        else:
+            # Node scope=project/release (PROJ-client-shell, PROJ-design-system, REL-devops-release).
+            # TRUOC DAY guard chi chay khi CA HAI ben co story, nen node khong co story nhan MOI
+            # message chua tieu thu gui toi role do — tu MOI story. Cu the: handoff
+            # US014-designer-screen -> client roi vao boot context cua PROJ-client-shell. Vi pham
+            # dung docstring ngay tren ("agent KHONG duoc thay message cua story khac") va lam
+            # phinh bundle chinh o nhung node co ngan sach chat nhat.
+            # Node cap project chi duoc nhan message KHONG thuoc story nao.
+            if mstory:
                 continue
         out.append((fm, body, fname))
     return out
@@ -303,7 +406,7 @@ def build(node_id, args):
     dag = load_json("kernel/contracts/dag.json")
     manifest = load_json(f"agents/{role}/manifest.json")
 
-    unit, gate, handoff, sync = resolve_permissions(dag, node, role, phase)
+    unit, gate, handoff, sync = resolve_permissions(dag, node, role, phase, nodes)
     if gate != (node.get("gate") or {}).get("name"):
         die(f"node.gate.name={(node.get('gate') or {}).get('name')!r} khac dag.units[{unit}].gate={gate!r} "
             f"-> khong compile khi trang thai da lech (chay validate.py truoc)")
@@ -405,11 +508,13 @@ def build(node_id, args):
             if v is None:
                 lines.append(f"{k}: null")
             elif isinstance(v, list):
-                lines.append(f"{k}: [{', '.join(str(x) for x in v)}]")
+                lines.append(f"{k}: [{', '.join(yaml_scalar(x) for x in v)}]")
             elif isinstance(v, bool):
                 lines.append(f"{k}: {'true' if v else 'false'}")
-            else:
+            elif isinstance(v, int):
                 lines.append(f"{k}: {v}")
+            else:
+                lines.append(f"{k}: {yaml_scalar(v)}")
         lines.append("---\n")
         return "\n".join(lines) + body_text
 
@@ -452,10 +557,8 @@ def build(node_id, args):
     if args.stdout:
         print(text)
     else:
-        os.makedirs(BOOT_DIR, exist_ok=True)
         out = os.path.join(BOOT_DIR, f"{node_id}.md")
-        with open(out, "w", encoding="utf-8") as f:
-            f.write(text)
+        write_atomic(out, text)   # xem kernel/tools/_atomic.py
         print(f"Da ghi {os.path.relpath(out, ROOT)}  "
               f"({fm_fields['bundle_tokens']}/{budget} token, attempt {attempt}, "
               f"{len(blocks)} nguon Tier 2, {len(inbox_ids)} message)")

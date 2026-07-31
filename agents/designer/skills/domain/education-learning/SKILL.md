@@ -43,10 +43,10 @@ PRD từ brief thô hầu như luôn thiếu `content_locked` (2 lý do khác nh
 
 ## 4. Quy ước platform (chỉ chỗ iOS và Android KHÁC nhau)
 
-- **Phát video nền/picture-in-picture:** iOS PiP qua AVKit có giới hạn khác Android PiP (Activity phải khai báo riêng) — nếu PRD yêu cầu "vừa học vừa làm việc khác" thì 2 nền tảng cần cấu hình khác nhau, nêu rõ cho `mobile-shell`.
+- **Phát video nền/picture-in-picture:** iOS PiP qua AVKit có giới hạn khác Android PiP (Activity phải khai báo riêng) — nếu PRD yêu cầu "vừa học vừa làm việc khác" thì 2 nền tảng cần cấu hình khác nhau, nêu rõ cho `client-shell`.
 - **Tải nội dung offline:** quản lý dung lượng lưu trữ hiển thị khác nhau — iOS có mục quản lý dung lượng app riêng trong Settings hệ thống, Android qua App Info — layout màn "quản lý nội dung đã tải" trong app nên tự đủ, không phụ thuộc user vào Settings hệ thống.
 - **Thanh toán mua khoá học trong app:** nếu bán khoá học số thì áp dụng ràng buộc In-App Purchase của iOS giống domain `e-commerce-marketplace` — nêu rõ trong layout checkout.
-- **Bàn phím nhập câu trả lời tự luận:** kiểu bàn phím và gợi ý tự động sửa khác nhau — với câu trả lời cần chính xác (chính tả, công thức) cân nhắc tắt auto-correct, khai rõ cho `mobile-screen`.
+- **Bàn phím nhập câu trả lời tự luận:** kiểu bàn phím và gợi ý tự động sửa khác nhau — với câu trả lời cần chính xác (chính tả, công thức) cân nhắc tắt auto-correct, khai rõ cho `client-screen`.
 
 ## 5. Accessibility đặc thù (ngoài `a11y_contract` nền)
 

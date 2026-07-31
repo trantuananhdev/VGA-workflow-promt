@@ -27,7 +27,7 @@ Nạp ở **bước 0** (trước khi liệt kê state), rồi dùng ở **bư�
 | Pattern UX chuẩn của domain | Cấu trúc màn hình chính (thứ tự khối, vị trí CTA) |
 | **State mà app loại này LUÔN cần** | Bước 3: state nào domain đòi mà PRD không nêu → **hỏi `ba`**, không tự thêm cũng không bỏ qua |
 | Pitfall hay gặp riêng domain | Tránh sẵn, không chờ QA phát hiện ở Gate 4 |
-| Quy ước platform (iOS HIG / Material) | Ghi rõ chỗ 2 nền tảng khác nhau, để `mobile-screen` không phải tự đoán |
+| Quy ước platform (iOS HIG / Material) | Ghi rõ chỗ 2 nền tảng khác nhau, để `client-screen` không phải tự đoán |
 | Checklist a11y đặc thù | Bổ sung ngoài `tokens.json` → `a11y_contract` (cái đó là mức nền cho mọi app) |
 
 **Giá trị chính không phải "vẽ đẹp hơn" mà là bắt thiếu sót SỚM.** PRD viết từ brief thô gần như luôn thiếu state mà người trong nghề coi là hiển nhiên (huỷ đơn, hết hàng, phiên hết hạn). Domain skill là danh sách để đối chiếu — phát hiện ở `designer` rẻ hơn phát hiện ở QA rất nhiều.

@@ -44,7 +44,7 @@ PRD từ brief thô hầu như luôn thiếu `data_gap`, `sync_failed`, và `per
 ## 4. Quy ước platform (chỉ chỗ iOS và Android KHÁC nhau)
 
 - **Nguồn dữ liệu sức khoẻ:** iOS dùng HealthKit, Android dùng Health Connect — 2 hệ **khác nhau hoàn toàn** về model quyền (HealthKit xin quyền theo từng loại dữ liệu cụ thể qua 1 màn hệ thống; Health Connect có màn quản lý quyền tập trung riêng, không nằm trong Settings app). Layout onboarding kết nối phải tính 2 luồng khác nhau, không vẽ chung 1 màn "Cấp quyền" rồi coi là xong.
-- **Thông báo nhắc nhở lặp lại:** giới hạn số lượng local notification đã lên lịch khác nhau giữa 2 nền tảng ở phiên bản cũ — với app nhắc nhiều lần/ngày cần nêu rõ cho `mobile-shell` kiểm tra giới hạn thật.
+- **Thông báo nhắc nhở lặp lại:** giới hạn số lượng local notification đã lên lịch khác nhau giữa 2 nền tảng ở phiên bản cũ — với app nhắc nhiều lần/ngày cần nêu rõ cho `client-shell` kiểm tra giới hạn thật.
 - **Đơn vị đo:** hiển thị theo locale hệ thống (kg/lb, cm/ft) — không hard-code 1 đơn vị.
 - **Widget màn hình chính** (nếu có): cấu hình và kích thước khác nhau giữa WidgetKit (iOS) và App Widgets (Android) — không dùng chung 1 layout.
 
